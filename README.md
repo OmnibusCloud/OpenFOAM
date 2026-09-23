@@ -69,6 +69,16 @@ audits the file system after a run to prove it.
 | macOS arm64 | `openfoam/macos-arm64/` | planned — Phase 0.4 |
 | Windows x86-64 | `openfoam/windows-x64/` | gated goal — upstream's MinGW cross-build, MS-MPI only when the machine owner has installed it |
 
+**macOS signing.** The macOS kit carries ad-hoc signatures only — the ones
+Apple's linker applies to every arm64 binary, and an explicit `codesign -s -`
+after any change to a binary's library paths. It is not signed with a
+Developer ID and not notarized, deliberately: a compute node downloads and
+unpacks the kit itself, so no file carries the quarantine attribute and
+Gatekeeper never evaluates it, while arm64 only requires that a signature
+exist. The CalculiX kit ships the same way. A kit downloaded by hand through
+a browser would be quarantined and refused; that is not how kits are
+distributed.
+
 Kits are published as release assets `openfoam-<platform>.zip` under tags
 `openfoam-v2606-N`, with `SHA256SUMS`. Zip archives carry no symbolic links and
 no Unix mode bits by the time a node has unpacked them, so the kit contains
