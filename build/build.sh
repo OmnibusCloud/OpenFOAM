@@ -57,18 +57,37 @@ fi
 # out loud.
 
 UPSTREAM="$REPO_ROOT/upstream/$OPENFOAM_DIR"
+
+# A checkout is the upstream tree only on a case-sensitive file system with
+# symbolic links. Windows has neither (upstream/ is left out of the working
+# tree there); a macOS runner checks out onto case-insensitive APFS, where
+# src/OpenFOAM/matrices/lduMatrix/lduMatrix.C and .../LduMatrix/LduMatrix.C
+# collapse into one file and the build later stops on a missing dependency
+# of the one that was lost (third macOS build, 2026-09-23). The probe is a
+# pair that differs by case alone; when it is not intact, the pinned pack is
+# unpacked instead - the same bytes, verified by checksum.
+checkout_is_upstream() {
+    [ -L "$UPSTREAM/wmake/scripts/wclean-build" ] || return 1
+    _a="$UPSTREAM/src/OpenFOAM/db/Time/instant/Instant.H"
+    _b="$UPSTREAM/src/OpenFOAM/db/Time/instant/instant.H"
+    [ -f "$_a" ] && [ -f "$_b" ] && ! cmp -s "$_a" "$_b"
+}
+
 if [ ! -d "$SRC" ]; then
-    if [ -L "$UPSTREAM/wmake/scripts/wclean-build" ]; then
+    if checkout_is_upstream; then
         log "copying upstream/$OPENFOAM_DIR into the build area"
         cp -R "$UPSTREAM" "$SRC"
     else
-        warn "upstream/ is absent or carries no symbolic links (a Windows checkout) - unpacking the pinned source pack instead"
+        warn "upstream/ is absent or not intact here (no symbolic links, or a case-insensitive checkout) - unpacking the pinned source pack instead"
         fetch_verify "$OPENFOAM_SRC_URL" "$OPENFOAM_SRC_SHA256" "$DEPS_DIR/$OPENFOAM_DIR.tgz"
         tar -xzf "$DEPS_DIR/$OPENFOAM_DIR.tgz" -C "$WORK"
     fi
 fi
 [ -f "$SRC/etc/bashrc" ] || die "no etc/bashrc under $SRC"
 [ -L "$SRC/wmake/scripts/wclean-build" ] || die "the build copy has no symbolic links - it must come from a Unix checkout or the source pack"
+_a="$SRC/src/OpenFOAM/db/Time/instant/Instant.H"; _b="$SRC/src/OpenFOAM/db/Time/instant/instant.H"
+{ [ -f "$_a" ] && [ -f "$_b" ] && ! cmp -s "$_a" "$_b"; } \
+    || die "the build area is not case-sensitive (Instant.H and instant.H collapsed) - OpenFOAM cannot be built here; on macOS use a case-sensitive volume"
 
 # ---------------------------------------------------------------------------
 # 2. ThirdParty, as a sibling: upstream's bashrc derives WM_THIRD_PARTY_DIR
@@ -95,6 +114,23 @@ for _c in "$OPENMPI_VERSION" "$SCOTCH_VERSION" "$KAHIP_VERSION" "$FFTW_VERSION";
     [ -d "$TP/sources/$(echo "$_c" | sed 's/[-_].*//' | tr 'A-Z' 'a-z')/$_c" ] \
         || die "no sources/*/$_c under ThirdParty - the pin in build/config.sh does not match what is unpacked"
 done
+
+# ThirdParty build-configuration adjustments (patches/README.md lists them):
+# macOS - scotch's Darwin Makefile.inc never includes <sys/time.h>, and Apple
+# clang 15 makes the implicit declaration of gettimeofday an error
+# ("call to undeclared function 'gettimeofday'", third macOS build,
+# 2026-09-23). Guarded: if upstream's file changes shape, the build stops
+# instead of silently building without the flags.
+if [ "$PLATFORM" = "macos-arm64" ]; then
+    _inc="$TP/etc/makeFiles/scotch/Makefile.inc.Darwin.shlib"
+    if ! grep -q -- "-DHAVE_SYS_TIME_H" "$_inc"; then
+        expect_in_file "$_inc" "^    -Drestrict=__restrict" "the last CFLAGS line of scotch's Darwin Makefile.inc"
+        sed -i '' 's|^    -Drestrict=__restrict$|    -Drestrict=__restrict \\\
+    -DHAVE_SYS_TIME_H -DHAVE_SYS_RESOURCE_H|' "$_inc"
+        expect_in_file "$_inc" "HAVE_SYS_TIME_H" "the added scotch timing flags"
+        log "scotch Darwin Makefile.inc: added -DHAVE_SYS_TIME_H -DHAVE_SYS_RESOURCE_H"
+    fi
+fi
 
 # ---------------------------------------------------------------------------
 # 3. Configure the build copy with upstream's own tool
