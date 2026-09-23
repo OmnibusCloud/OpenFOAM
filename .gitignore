@@ -1,0 +1,11 @@
+# Build trees, kits and verification runs.
+.build/
+*.log
+
+# Pinned upstream downloads and scratch extractions kept beside the repo on
+# a developer machine; the pins live in build/config.sh, the bytes in the
+# upstream-mirror release.
+@Downloads/
+
+# Archives mirror.sh downloads before publishing them as release assets.
+redistribution/out/

@@ -1,0 +1,133 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['openfoam-v*']
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      macos:
+        description: 'Also build the macOS arm64 kit (Phase 0.4; long)'
+        type: boolean
+        default: false
+      long:
+        description: 'Run motorBike in the verification (minutes per platform)'
+        type: boolean
+        default: false
+
+jobs:
+  linux-x64:
+    # Pinned rather than latest: the glibc the kit is built against is the
+    # oldest one it will run on, and compute nodes are not all current. The
+    # package list mirrors build/linux/Dockerfile.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install the toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential gcc g++ make cmake flex libfl-dev bison m4 gawk \
+            zlib1g-dev libreadline-dev libgmp-dev libmpfr-dev libmpc-dev \
+            autoconf automake libtool pkg-config file curl zip unzip
+
+      # Every download is pinned by checksum, so a cache hit is exactly the
+      # same bytes and cannot mask a change.
+      - name: Cache the pinned downloads
+        uses: actions/cache@v4
+        with:
+          path: .build/deps
+          key: deps-${{ hashFiles('build/config.sh') }}
+
+      - name: Build and pack
+        run: sh build/build.sh
+
+      - name: Verify in a foreign image (Debian 12, no compiler, no libgomp)
+        env:
+          LONG: ${{ inputs.long && '1' || '0' }}
+        run: |
+          docker build -q -t openfoam-verify -f build/linux/Dockerfile.verify build/linux
+          docker run --rm \
+            -v "$PWD:/repo:ro" \
+            -e VERIFY_ROOT=/home/verify/verify -e WORK=/home/verify/work -e LONG="$LONG" \
+            openfoam-verify sh /repo/build/verify.sh /repo/.build/out/openfoam-linux-x64.zip
+
+      - name: Keep the build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-x64-build-log
+          path: .build/OpenFOAM-v2606/log.*
+          retention-days: 7
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openfoam-linux-x64
+          path: .build/out/
+
+  macos-arm64:
+    # Phase 0.4. Off by default until the plain-folder runtime question is
+    # answered; the build needs a case-sensitive volume (upstream's own
+    # requirement) and takes about two hours on this runner.
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.macos }}
+    runs-on: macos-14
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Case-sensitive build volume
+        run: |
+          hdiutil create -size 40g -fs 'Case-sensitive APFS' -volname OpenFOAMBuild -type SPARSEBUNDLE build.sparsebundle
+          hdiutil attach build.sparsebundle -mountpoint /Volumes/OpenFOAMBuild
+          echo "WORK=/Volumes/OpenFOAMBuild/build" >> "$GITHUB_ENV"
+
+      - name: Toolchain
+        run: brew install flex cmake
+
+      - name: Cache the pinned downloads
+        uses: actions/cache@v4
+        with:
+          path: /Volumes/OpenFOAMBuild/build/deps
+          key: deps-macos-${{ hashFiles('build/config.sh') }}
+
+      - name: Build and pack
+        run: sh build/build.sh
+
+      - name: Verify from a plain folder
+        env:
+          LONG: ${{ inputs.long && '1' || '0' }}
+        run: VERIFY_ROOT="$HOME/verify" sh build/verify.sh "$WORK/out/openfoam-macos-arm64.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openfoam-macos-arm64
+          path: /Volumes/OpenFOAMBuild/build/out/
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/openfoam-v')
+    needs: [linux-x64]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: kits
+      - name: Checksums over every asset
+        run: |
+          cd kits
+          find . -name '*.zip' -exec mv {} . \;
+          sha256sum *.zip > SHA256SUMS
+          cat SHA256SUMS
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            kits/*.zip
+            kits/SHA256SUMS
+          body: |
+            OpenFOAM® v2606 kits for OmnibusCloud compute nodes. Corresponding source: this repository at this tag and the release `upstream-mirror-v2606`. See `PROVENANCE.md`.
+
+            OpenFOAM® is a registered trademark of OpenCFD Limited. This offering is not approved or endorsed by OpenCFD Limited, producer and distributor of the OpenFOAM software via www.openfoam.com, and owner of the OPENFOAM® and OpenCFD® trade marks.

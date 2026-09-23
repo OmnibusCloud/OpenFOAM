@@ -1,0 +1,11 @@
+# A foreign image for verification: a different distribution from the one
+# that built the kit, no compiler, no libgomp, no MPI. If the kit starts here
+# it carries what it needs; if it does not, verify.sh says which library.
+FROM debian:12
+
+RUN apt-get update && apt-get install -y --no-install-recommends unzip ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN useradd -m -u 1000 -s /bin/sh verify
+USER verify
+WORKDIR /home/verify

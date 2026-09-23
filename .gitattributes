@@ -1,0 +1,4 @@
+# No line-ending conversion anywhere: upstream/ must stay byte-verbatim, and
+# the build scripts are executed by sh on Linux and macOS, where a CR is a
+# syntax error. Author every file here with LF.
+* -text
