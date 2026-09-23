@@ -69,9 +69,19 @@ there is no kit to cite.
 
 ## Windows
 
-OpenCFD publishes a native Windows build of the same version
-(`OpenFOAM-v2606-windows-mingw.exe`, 203 MB, MinGW cross-compiled, MS-MPI
-optional and installed separately). If OmnibusCloud ever redistributes that
-package, or a kit repacked from it, its checksum is recorded here before the
-first download link exists — the rule this repository follows for every byte
-it hands to other people.
+OpenCFD publishes a native Windows build of the same version. Recorded
+2026-09-23 from the downloaded installer, before any decision to redistribute
+it or a kit repacked from it — the rule this repository follows for every
+byte it hands to other people:
+
+| Item | Value |
+|---|---|
+| URL | <https://dl.openfoam.com/source/v2606/OpenFOAM-v2606-windows-mingw.exe> |
+| SHA-256 | `020321d58b42e1d2ad0b616cdde17f92503608edd902388fb8c73e94e9cb1e25` |
+| Size | 203 083 004 bytes |
+| Form | NSIS installer: `msys64.7z` (185 MB, an MSYS2 tree with the OpenFOAM installation at `msys64/home/ofuser/OpenFOAM/OpenFOAM-v2606`, 725 MB unpacked: `platforms/win64MingwDPInt32Opt/bin` 622 MB with 270 `.exe` and 139 `.dll`, `tutorials` 99 MB), `thirdParty/msmpisetup.exe` (MS-MPI 10, run by the installer in admin mode or by the user), `setEnvVariables-v2606.bat` (the environment: `HOME`, `WM_PROJECT_DIR`, `PATH` to `platforms/…/bin`, `FOAM_SIGFPE`), documents, licence |
+| Runtime | every DLL beside the executables: `libstdc++-6`, `libgcc_s_seh-1`, `libwinpthread-1`, `libfftw3-3`, `libscotch`, the decomposition libraries; **`libPstream.dll` is the MS-MPI variant** (`libPstream.dll-msmpi`, identical checksum), `libPstream.dll-dummy` is the serial stand-in to copy over it on a machine without MS-MPI |
+| README | "cross-compiled in OpenSUSE environment using mingw cross-compiler … the thirdparty remain same as of 2512 release … does not support the compilation of OpenFOAM or dynamic code" |
+
+Nothing from this package is redistributed yet; the entry exists so that a
+Phase 0.5 interim Windows kit, if built, cites its origin by checksum.

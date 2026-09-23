@@ -138,12 +138,19 @@ expect_in_file "$SRC/etc/config.sh/metis" "METIS_VERSION=$METIS_VERSION"        
 BUILD_HOME="$WORK/home"
 mkdir -p "$BUILD_HOME"
 
+# errexit is switched OFF around the source: inside a file sourced as part of
+# an || list, bash 5 suspends -e but bash 3.2 (macOS's /bin/bash) does not,
+# and the first failing probe inside etc/bashrc then kills the shell before
+# a word is printed - the first macOS run ended exactly so, silently.
 _env_prologue="#!/bin/bash
 set -e
 export HOME='$BUILD_HOME'
 export WM_NCOMPPROCS='$JOBS'
 unset WM_PROJECT_DIR WM_PROJECT_SITE FOAM_CONFIG_ETC FOAM_CONFIG_MODE
-source '$SRC/etc/bashrc' || true
+echo \"==> sourcing $SRC/etc/bashrc (bash \$BASH_VERSION)\"
+set +e
+source '$SRC/etc/bashrc'
+set -e
 [ \"\$WM_PROJECT_DIR\" = '$SRC' ] || { echo \"WM_PROJECT_DIR is '\$WM_PROJECT_DIR', expected '$SRC'\" >&2; exit 1; }
 [ \"\$WM_OPTIONS\" = '$WM_OPTIONS_EXPECTED' ] || { echo \"WM_OPTIONS is '\$WM_OPTIONS', expected '$WM_OPTIONS_EXPECTED'\" >&2; exit 1; }
 [ \"\$WM_THIRD_PARTY_DIR\" = '$TP' ] || { echo \"WM_THIRD_PARTY_DIR is '\$WM_THIRD_PARTY_DIR', expected '$TP'\" >&2; exit 1; }
