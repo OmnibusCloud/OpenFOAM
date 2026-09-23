@@ -82,12 +82,30 @@ a foreign image.
 
 | Release | Kit | SHA-256 | Size | Built from | Built by |
 |---|---|---|---|---|---|
-| [`openfoam-v2606-1`](https://github.com/OmnibusCloud/OpenFOAM/releases/tag/openfoam-v2606-1) (2026-09-23) | `openfoam-linux-x64.zip` | `601ead350823cdfe9175a17338870c02733683a4eb731c07f1535a100fbfcd2f` | 158 860 111 | `99d2874` | CI run 35852177714, `ubuntu-22.04`, gcc 11.4.0; Open MPI 4.1.8, scotch 6.1.0, fftw 3.3.10 |
+| [`openfoam-v2606-2`](https://github.com/OmnibusCloud/OpenFOAM/releases/tag/openfoam-v2606-2) (2026-09-23) | `openfoam-linux-x64.zip` | `fd0b444ff8b3f63e594a45ae7514a699899c4176bdbdacaf4a52a49be51c7c55` | 158 775 859 | `6eada66` | CI run 35878648232, `ubuntu-22.04`, gcc 11.4.0 |
+| [`openfoam-v2606-2`](https://github.com/OmnibusCloud/OpenFOAM/releases/tag/openfoam-v2606-2) (2026-09-23) | `openfoam-macos-arm64.zip` | `f1d86fd29ea76e640b3ef344a690505a5f24589c162c04b2eaabe28a917da71c` | 114 973 131 | `6eada66` | CI run 35878648232, `macos-14`, Apple clang (Xcode 15.4); ad-hoc signed |
+| [`openfoam-v2606-1`](https://github.com/OmnibusCloud/OpenFOAM/releases/tag/openfoam-v2606-1) (2026-09-23) | `openfoam-linux-x64.zip` | `601ead350823cdfe9175a17338870c02733683a4eb731c07f1535a100fbfcd2f` | 158 860 111 | `99d2874` | CI run 35852177714, `ubuntu-22.04`, gcc 11.4.0 |
 
-Downloaded-kit acceptance of `openfoam-v2606-1` (debian:12, unprivileged,
-`env -i` + `KIT.env`): pitzDaily serial 281 iterations and on four ranks 289,
-damBreak, motorBike through snappyHexMesh and simpleFoam on six ranks to
-Time = 500 in 253 s, file-system audit clean.
+All three: OpenFOAM v2606, Open MPI 4.1.8, scotch 6.1.0, fftw 3.3.10,
+DP/Int32/Opt, no kahip.
+
+Acceptance of `openfoam-v2606-2`:
+
+- **Linux, downloaded** (debian:12, unprivileged, `env -i` + `KIT.env`):
+  pitzDaily serial 281 iterations and on four ranks 289, damBreak, motorBike
+  through snappyHexMesh and simpleFoam on six ranks to Time = 500 in 235 s,
+  file-system audit clean.
+- **macOS, in the release run** (the kit staged off the build volume, the
+  volume detached, a dedicated unprivileged account): pitzDaily serial and on
+  four ranks, damBreak, motorBike on six ranks to Time = 500 in 770 s on the
+  3-core runner, file-system audit clean. **Downloaded** and inspected
+  (`llvm-objdump --macho`): 1 324 files, no symbolic links, no paths that
+  differ by case alone, no link-time files, none of the 643 Mach-O files
+  loading from outside the kit or the OS, no absolute rpath.
+
+`openfoam-v2606-1` (Linux only) passed the same Linux acceptance after
+download (motorBike 253 s); it still carries `lib/libOSspecific.o`, a
+link-time object later packs leave out.
 
 ## Windows
 
