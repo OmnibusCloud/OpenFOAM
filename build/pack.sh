@@ -63,7 +63,10 @@ done
 # needs (headers, pkg-config, libtool archives, manuals).
 copy_into "$TP" "$KIT/$THIRDPARTY_DIR" platforms COPYING README.md SOURCES.md
 find "$KIT/$THIRDPARTY_DIR/platforms" -type d \( -name include -o -name pkgconfig -o -name man -o -name doc \) -prune -exec rm -rf {} + 2>/dev/null || true
-find "$KIT/$THIRDPARTY_DIR/platforms" -type f \( -name '*.la' -o -name '*.a' \) -delete
+# Link-time products anywhere in the kit: static archives, libtool archives
+# and object files (OpenFOAM leaves lib/libOSspecific.o, which wmake links into
+# applications it compiles). A node compiles nothing.
+find "$KIT" -type f \( -name '*.la' -o -name '*.a' -o -name '*.o' \) -delete
 
 # A reused build tree may still hold another MPI's products (the pin moved
 # from 4.1.2 to 4.1.8 once); only the pinned one travels.
@@ -166,16 +169,20 @@ case "$PLATFORM" in
             find "$KIT" -type f | while IFS= read -r _f; do
                 file "$_f" 2>/dev/null | grep -q 'Mach-O' || continue
                 _args=""
+                # Rewritten: absolute names outside the OS, and BARE names -
+                # scotch's Darwin makefile links with no -install_name, so its
+                # libraries are called "libscotch.dylib", which dyld would look
+                # up relative to the current directory (seventh macOS build).
                 _id=$(otool -D "$_f" 2>/dev/null | sed -n '2p')
                 case "$_id" in
                     /usr/lib/*|/System/*|@*|"") ;;
-                    /*) _args="$_args -id @rpath/${_id##*/}" ;;
+                    *) _args="$_args -id @rpath/${_id##*/}" ;;
                 esac
                 for _d in $(otool -L "$_f" 2>/dev/null | tail -n +2 | awk '{print $1}' | sort -u); do
                     [ "$_d" = "$_id" ] && continue
                     case "$_d" in
                         /usr/lib/*|/System/*|@*) ;;
-                        /*) _args="$_args -change $_d @rpath/${_d##*/}" ;;
+                        *) _args="$_args -change $_d @rpath/${_d##*/}" ;;
                     esac
                 done
                 for _r in $(otool -l "$_f" 2>/dev/null | awk '/cmd LC_RPATH/{f=1} f && / path /{print $2; f=0}' | sort -u); do
