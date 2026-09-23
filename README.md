@@ -89,12 +89,26 @@ See [`build/README.md`](build/README.md) for the knobs. CI
 ([`.github/workflows/build.yml`](.github/workflows/build.yml)) runs the same
 scripts; a tag `openfoam-v2606-N` publishes the kits.
 
-**Windows checkouts.** The upstream tree contains 219 symbolic links, which a
-Windows checkout stores as small text files (`core.symlinks=false`). The
-build detects such a tree and unpacks the pinned source pack instead — the
-same bytes, verified by checksum — so a Windows machine can still drive a
-Linux build in Docker. Never build from `upstream/` directly: the build works
-on a copy.
+**Windows checkouts.** The upstream tree cannot be materialised on NTFS: it
+carries 219 symbolic links, file names that differ only by case
+(`Instant.H` beside `instant.H`), and three tutorial files with a colon in
+their name (`jouleHeatingSource:V`, `jouleHeatingSource:sigma`,
+`electricPotential:V`), which Windows would turn into alternate data
+streams. Clone with a sparse checkout that leaves `upstream/` out, and allow
+git to keep those paths in the index:
+
+```sh
+git clone --no-checkout https://github.com/OmnibusCloud/OpenFOAM.git
+cd OpenFOAM
+git config core.protectNTFS false
+git sparse-checkout set --no-cone '/*' '!/upstream/'
+git checkout main
+```
+
+The build detects the absent tree and unpacks the pinned source pack instead
+— the same bytes, verified by checksum — so a Windows machine can still drive
+a Linux build in Docker (`sh build/linux/run.sh all`). Never build from
+`upstream/` directly on any platform: the build works on a copy.
 
 ## Repository layout
 

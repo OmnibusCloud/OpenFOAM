@@ -48,11 +48,13 @@ fi
 # 1. The source tree
 # ---------------------------------------------------------------------------
 #
-# Copied from upstream/ - unless this checkout has no symbolic links (a
-# Windows checkout stores them as text files), in which case the pinned
-# source pack is unpacked instead: the same bytes, verified by checksum
-# (PROVENANCE.md). Building from a link-less tree would not fail loudly, it
-# would fail strangely, so the choice is made here and said out loud.
+# Copied from upstream/ - unless this checkout does not carry it as upstream
+# shipped it (a Windows sparse checkout leaves it out entirely; NTFS cannot
+# hold its links, case-colliding names and colon-named files, see README.md),
+# in which case the pinned source pack is unpacked instead: the same bytes,
+# verified by checksum (PROVENANCE.md). Building from a mangled tree would not
+# fail loudly, it would fail strangely, so the choice is made here and said
+# out loud.
 
 UPSTREAM="$REPO_ROOT/upstream/$OPENFOAM_DIR"
 if [ ! -d "$SRC" ]; then
@@ -60,7 +62,7 @@ if [ ! -d "$SRC" ]; then
         log "copying upstream/$OPENFOAM_DIR into the build area"
         cp -R "$UPSTREAM" "$SRC"
     else
-        warn "upstream/ carries no symbolic links (a Windows checkout) - unpacking the pinned source pack instead"
+        warn "upstream/ is absent or carries no symbolic links (a Windows checkout) - unpacking the pinned source pack instead"
         fetch_verify "$OPENFOAM_SRC_URL" "$OPENFOAM_SRC_SHA256" "$DEPS_DIR/$OPENFOAM_DIR.tgz"
         tar -xzf "$DEPS_DIR/$OPENFOAM_DIR.tgz" -C "$WORK"
     fi
