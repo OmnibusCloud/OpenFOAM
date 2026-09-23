@@ -46,8 +46,9 @@ refused by name rather than run against a different solver.
 |---|---|---|
 | Precision / label | `DP`, `Int32` | upstream's defaults; the ones every tutorial and most user cases assume |
 | MPI | Open MPI 4.1.8, bundled (fetched by checksum; the pack's 4.1.2 does not configure under Xcode 15 on Apple Silicon) | the kit must run parallel on a node that has no MPI; a system MPI is never assumed; one MPI version on every platform |
-| Decomposition | scotch 6.1.0, kahip 3.15 | `decomposePar` methods a case may name |
+| Decomposition | scotch 6.1.0 (and pt-scotch) | the method the controller writes into every `decomposeParDict`; a case's own choice is ignored by design |
 | FFTW 3.3.10 | bundled | function objects that need it |
+| kahip | **not built** | never asked for (see above); it would cost an OpenMP runtime on every platform and has none under Apple clang |
 | CGAL / boost, ADIOS2, HDF5, METIS | **not built** | they gate tools the controller does not admit (foamyHexMesh, in-situ output) and are the components upstream itself cannot cross-build for Windows |
 | Compiler | system GCC on Linux (Ubuntu 22.04 image: gcc 11, glibc 2.35), Apple clang on macOS | the glibc the kit is built against is the oldest it runs on |
 

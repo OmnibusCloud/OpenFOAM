@@ -39,15 +39,23 @@ THIRDPARTY_SIZE=369660343
 OPENMPI_VERSION=openmpi-4.1.8
 OPENMPI_URL=https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-4.1.8.tar.bz2
 OPENMPI_SHA256=466f68e3132a1dc02710cc2011fafced8336d98359fa2dae4dddcfd5719f12a9
-SCOTCH_VERSION=scotch_6.1.0       # decomposePar's default method
-KAHIP_VERSION=kahip-3.15          # decomposePar method a case may name
+SCOTCH_VERSION=scotch_6.1.0       # decomposePar's default method - the one the controller writes
 FFTW_VERSION=fftw-3.3.10          # function objects (noise, energy spectra)
+
+# kahip is left out (2026-09-23). The controller writes decomposeParDict for
+# every parallel run and names scotch; a case's own choice of method is
+# ignored by design (requirements FR-F12), so kahip would never be asked
+# for. It costs an OpenMP runtime on every platform (libgomp had to be
+# staged into the Linux kit for it alone) and has no OpenMP at all under
+# Apple clang, where the fourth macOS build died linking libkahipDecomp
+# ("ld: library 'omp' not found").
+KAHIP_VERSION=kahip-none
 
 # Left out on purpose. Each gates tooling the OmnibusCloud controller does
 # not admit to its allow-list (foamyHexMesh, in-situ output, external
 # solvers), each is a component upstream itself cannot cross-build for
 # Windows, and CGAL/boost alone are a large share of the build time.
-# Re-enable together with the allow-list, never alone.
+# Re-enable together with the allow-list, never alone. (kahip: above.)
 CGAL_VERSION=cgal-none
 BOOST_VERSION=boost-none
 ADIOS2_VERSION=adios-none

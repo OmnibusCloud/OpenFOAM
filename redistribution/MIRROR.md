@@ -31,12 +31,11 @@ Third-party components the kits compile:
 |---|---|---|
 | Open MPI 4.1.8 | `openmpi-4.1.8.tar.bz2` above (the pack's `sources/openmpi/openmpi-4.1.2` is not built) | BSD-3-Clause |
 | SCOTCH 6.1.0 | `sources/scotch/scotch_6.1.0` | CeCILL-C |
-| KaHIP 3.15 | `sources/kahip/kahip-3.15` | MIT |
 | FFTW 3.3.10 | `sources/fftw/fftw-3.3.10` | GPL-2.0-or-later |
 
 Present in the pack, not compiled (recorded so that a future change is a
-visible decision): boost 1.74.0, CGAL 4.14.3, ADIOS2 2.12.1, HDF5 2.1.1,
-umpire 2025.03.0, ParaView 6.1.1.
+visible decision): Open MPI 4.1.2, KaHIP 3.15, boost 1.74.0, CGAL 4.14.3,
+ADIOS2 2.12.1, HDF5 2.1.1, umpire 2025.03.0, ParaView 6.1.1.
 
 ## Windows
 

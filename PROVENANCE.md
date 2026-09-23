@@ -49,8 +49,8 @@ corresponding source of every compiled component travels with the kits.
 | SHA-256 | `3c7ccd88c5698a9c77a636b01f26e35d7042f15f14c2364cfd2d403030bf3f4a` |
 | Size | 369 660 343 bytes |
 | Scripts licence | LGPL-3.0 (`ThirdParty-v2606/COPYING`) |
-| Components we compile (unpacked under `sources/`) | `scotch_6.1.0` (CeCILL-C), `kahip-3.15` (MIT), `fftw-3.3.10` (GPL-2.0-or-later) |
-| Components present but not compiled | `openmpi-4.1.2` (replaced by 4.1.8, below), `boost_1_74_0`, `CGAL-4.14.3`, `ADIOS2-2.12.1`, `hdf5-2.1.1`, `umpire-2025.03.0`, `ParaView-v6.1.1` |
+| Components we compile (unpacked under `sources/`) | `scotch_6.1.0` (CeCILL-C), `fftw-3.3.10` (GPL-2.0-or-later) |
+| Components present but not compiled | `openmpi-4.1.2` (replaced by 4.1.8, below), `kahip-3.15` (never asked for: the controller writes scotch into every `decomposeParDict`; it needs an OpenMP runtime Apple clang lacks), `boost_1_74_0`, `CGAL-4.14.3`, `ADIOS2-2.12.1`, `hdf5-2.1.1`, `umpire-2025.03.0`, `ParaView-v6.1.1` |
 
 ## Open MPI
 

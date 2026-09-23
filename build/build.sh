@@ -34,8 +34,8 @@ TP="$WORK/$THIRDPARTY_DIR"
 
 log "OpenFOAM $OPENFOAM_VERSION for $PLATFORM ($WM_OPTIONS_EXPECTED), $JOBS jobs"
 log "  MPI      $OPENMPI_VERSION (ThirdParty, bundled)"
-log "  scotch   $SCOTCH_VERSION   kahip $KAHIP_VERSION   fftw $FFTW_VERSION"
-log "  CGAL/boost, ADIOS2, HDF5, METIS: off (build/config.sh)"
+log "  scotch   $SCOTCH_VERSION   fftw $FFTW_VERSION"
+log "  kahip, CGAL/boost, ADIOS2, HDF5, METIS: off (build/config.sh)"
 
 mkdir -p "$DEPS_DIR" "$WORK"
 
@@ -110,7 +110,7 @@ if [ ! -d "$TP/sources/openmpi/$OPENMPI_VERSION" ]; then
     tar -xjf "$DEPS_DIR/$OPENMPI_VERSION.tar.bz2" -C "$TP/sources/openmpi"
 fi
 
-for _c in "$OPENMPI_VERSION" "$SCOTCH_VERSION" "$KAHIP_VERSION" "$FFTW_VERSION"; do
+for _c in "$OPENMPI_VERSION" "$SCOTCH_VERSION" "$FFTW_VERSION"; do
     [ -d "$TP/sources/$(echo "$_c" | sed 's/[-_].*//' | tr 'A-Z' 'a-z')/$_c" ] \
         || die "no sources/*/$_c under ThirdParty - the pin in build/config.sh does not match what is unpacked"
 done
@@ -273,7 +273,6 @@ have_lib() {   # have_lib <what> <glob>...
 TPLIB="$TP/platforms/$TP_LIB_PLATFORM/lib"
 have_lib "ThirdParty scotch (did not build)"    "$TPLIB/libscotch*.$SO_EXT"
 have_lib "ThirdParty pt-scotch (did not build)" "$TPLIB/$OPENMPI_VERSION/libptscotch*.$SO_EXT"
-have_lib "ThirdParty kahip (did not build)"     "$TPLIB/libkahip*.$SO_EXT"
 have_lib "ThirdParty fftw (did not build)"      "$TP/platforms/$TP_MPI_PLATFORM/$FFTW_VERSION/lib/libfftw3.$SO_EXT*" "$TP/platforms/$TP_MPI_PLATFORM/$FFTW_VERSION/lib64/libfftw3.$SO_EXT*"
 links_to() {   # links_to <binary> <library name fragment>
     case "$PLATFORM" in
@@ -283,7 +282,6 @@ links_to() {   # links_to <binary> <library name fragment>
 }
 links_to "$LIB/libscotchDecomp.$SO_EXT" "libscotch"                       || die "libscotchDecomp.$SO_EXT does not link libscotch - it is the dummy"
 links_to "$LIB/$OPENMPI_VERSION/libptscotchDecomp.$SO_EXT" "libptscotch"  || die "libptscotchDecomp.$SO_EXT does not link libptscotch - it is the dummy"
-links_to "$LIB/libkahipDecomp.$SO_EXT" "libkahip"                         || die "libkahipDecomp.$SO_EXT does not link libkahip - it is the dummy"
 links_to "$LIB/$OPENMPI_VERSION/libPstream.$SO_EXT" "libmpi"              || die "libPstream.$SO_EXT does not link libmpi"
 
 sh "$BUILD_DIR/pack.sh"
