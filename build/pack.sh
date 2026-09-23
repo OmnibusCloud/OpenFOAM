@@ -90,6 +90,10 @@ _links=$(find "$KIT" -type l | wc -l | tr -d ' ')
 # check in verify.sh is what proves this list complete.
 
 OF_LIB="$KIT/$OPENFOAM_DIR/platforms/$WM_OPTIONS_EXPECTED/lib"
+# The record is per pack run: a reused work tree kept the previous run's
+# list and reported libgomp as staged after kahip - its only consumer - had
+# left the kit (2026-09-23).
+rm -f "$WORK/staged-libs.txt"
 case "$PLATFORM" in
     linux-x64)
         need ldd
