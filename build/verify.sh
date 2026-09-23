@@ -46,7 +46,12 @@ SCRATCH="$ROOT/scratch"
 mkdir -p "$KITDIR" "$SCRATCH/home" "$SCRATCH/tmp" "$SCRATCH/cases"
 
 log "unpacking $(basename "$KIT_ZIP") under '$KITDIR'"
-unzip -q "$KIT_ZIP" -d "$KITDIR"
+# -n: never overwrite, never ask. Two archive members that differ by case
+# alone would otherwise stop a case-insensitive host with a prompt (the fifth
+# macOS build); pack.sh refuses such a kit, and this keeps the run honest if
+# one ever slips through - the second member is simply not extracted, and
+# the acceptance then fails on whatever is missing.
+unzip -q -n "$KIT_ZIP" -d "$KITDIR"
 KIT="$KITDIR/openfoam/$KIT_FOLDER"
 [ -f "$KIT/KIT.env" ] || die "the archive carries no KIT.env"
 _links=$(find "$KIT" -type l | wc -l | tr -d ' ')

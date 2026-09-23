@@ -102,13 +102,17 @@ jobs:
         run: sh build/build.sh
 
       - name: Verify from a plain folder
+        id: verify
         env:
           LONG: ${{ inputs.long && '1' || '0' }}
         run: VERIFY_ROOT="$HOME/verify" sh build/verify.sh "$WORK/out/openfoam-macos-arm64.zip"
 
+      # The kit is uploaded even when the acceptance fails: a kit that builds
+      # but does not start elsewhere is exactly what has to be inspected.
       - uses: actions/upload-artifact@v4
+        if: ${{ always() && steps.verify.outcome != 'skipped' }}
         with:
-          name: openfoam-macos-arm64
+          name: openfoam-macos-arm64${{ steps.verify.outcome == 'success' && '' || '-unverified' }}
           path: /Volumes/OpenFOAMBuild/build/out/
 
   release:

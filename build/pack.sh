@@ -69,6 +69,30 @@ find "$KIT/$THIRDPARTY_DIR/platforms" -type f \( -name '*.la' -o -name '*.a' \) 
 # from 4.1.2 to 4.1.8 once); only the pinned one travels.
 find "$KIT" -type d -name 'openmpi-*' ! -name "$OPENMPI_VERSION" -prune -exec rm -rf {} + 2>/dev/null || true
 
+# Open MPI's compiler wrappers and build-time tools do not travel: a node
+# compiles nothing, and mpicc beside mpiCC is a pair that differs by case
+# alone - on a case-insensitive node (macOS, Windows) the archive cannot even
+# be unpacked (the fifth macOS build: unzip stopped at "replace mpicc?").
+_mpi="$KIT/$THIRDPARTY_DIR/platforms/$TP_MPI_PLATFORM/$OPENMPI_VERSION"
+if [ -d "$_mpi/bin" ]; then
+    for _w in mpicc mpiCC mpic++ mpicxx mpif77 mpif90 mpifort ortecc ortec++ oshcc oshCC oshc++ oshcxx oshfort opal_wrapper shmemcc shmemCC shmemc++ shmemcxx shmemfort; do
+        rm -f "$_mpi/bin/$_w"
+    done
+fi
+# ...and the data files the wrappers read (mpicc-wrapper-data.txt beside
+# mpiCC-wrapper-data.txt is the second case pair Open MPI ships).
+rm -f "$_mpi"/share/openmpi/*-wrapper-data.txt
+
+# What a case-insensitive file system would collapse. The nodes are not all
+# case-sensitive, so the kit must carry no two paths that differ by case
+# alone; the check is generic because the wrappers were only the first pair.
+_collisions=$( (cd "$KIT" && find . | tr 'A-Z' 'a-z' | sort | uniq -d) )
+if [ -n "$_collisions" ]; then
+    warn "paths that differ by case alone (a case-insensitive node cannot hold them):"
+    echo "$_collisions" | sed 's/^/      /' >&2
+    die "the kit is not case-collision-free"
+fi
+
 # The build's own scratch that would otherwise travel: lnInclude trees,
 # logs, the wmake object directories are not under platforms/bin|lib and
 # were never copied; but tutorials may hold results if someone ran one.
