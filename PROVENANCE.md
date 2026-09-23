@@ -74,13 +74,20 @@ solvers) that the OmnibusCloud controller does not admit to its allow-list.
 
 ## Kits
 
-Filled in at the first release: per platform, the archive name, SHA-256, size,
-the CI run that produced it, and the toolchain the run reported. Until then
-there is no kit to cite.
+Per release and platform: the archive, its SHA-256 and size, the commit and CI
+run that produced it, and the toolchain the run reported. Every kit listed was
+downloaded from its release after publication, checked against `SHA256SUMS`,
+and accepted again by `build/verify.sh` (the long run, motorBike included) in
+a foreign image.
 
-| Kit | Platform | SHA-256 | Size | Built by |
-|---|---|---|---|---|
-| — | — | — | — | — |
+| Release | Kit | SHA-256 | Size | Built from | Built by |
+|---|---|---|---|---|---|
+| [`openfoam-v2606-1`](https://github.com/OmnibusCloud/OpenFOAM/releases/tag/openfoam-v2606-1) (2026-09-23) | `openfoam-linux-x64.zip` | `601ead350823cdfe9175a17338870c02733683a4eb731c07f1535a100fbfcd2f` | 158 860 111 | `99d2874` | CI run 35852177714, `ubuntu-22.04`, gcc 11.4.0; Open MPI 4.1.8, scotch 6.1.0, fftw 3.3.10 |
+
+Downloaded-kit acceptance of `openfoam-v2606-1` (debian:12, unprivileged,
+`env -i` + `KIT.env`): pitzDaily serial 281 iterations and on four ranks 289,
+damBreak, motorBike through snappyHexMesh and simpleFoam on six ranks to
+Time = 500 in 253 s, file-system audit clean.
 
 ## Windows
 
