@@ -66,7 +66,7 @@ audits the file system after a run to prove it.
 | Platform | Kit folder | Status |
 |---|---|---|
 | Linux x86-64 | `openfoam/linux-x64/` | **released** as [`openfoam-v2606-1`](https://github.com/OmnibusCloud/OpenFOAM/releases/tag/openfoam-v2606-1) (152 MB zip, 506 MB unpacked); accepted in a foreign image after download, motorBike included |
-| macOS arm64 | `openfoam/macos-arm64/` | builds (96 min on `macos-14`) and runs pitzDaily and damBreak from a plain folder; relocation of the Mach-O load commands being proven with the build volume detached |
+| macOS arm64 | `openfoam/macos-arm64/` | builds (93 min on `macos-14`, 112 MB zip, 417 MB unpacked) and passes the acceptance with the build volume detached, as a dedicated unprivileged account; first release: `openfoam-v2606-2` |
 | Windows x86-64 | `openfoam/windows-x64/` | gated goal — upstream's MinGW cross-build, MS-MPI only when the machine owner has installed it |
 
 **macOS signing.** The macOS kit carries ad-hoc signatures only — the ones
