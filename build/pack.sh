@@ -65,6 +65,10 @@ copy_into "$TP" "$KIT/$THIRDPARTY_DIR" platforms COPYING README.md SOURCES.md
 find "$KIT/$THIRDPARTY_DIR/platforms" -type d \( -name include -o -name pkgconfig -o -name man -o -name doc \) -prune -exec rm -rf {} + 2>/dev/null || true
 find "$KIT/$THIRDPARTY_DIR/platforms" -type f \( -name '*.la' -o -name '*.a' \) -delete
 
+# A reused build tree may still hold another MPI's products (the pin moved
+# from 4.1.2 to 4.1.8 once); only the pinned one travels.
+find "$KIT" -type d -name 'openmpi-*' ! -name "$OPENMPI_VERSION" -prune -exec rm -rf {} + 2>/dev/null || true
+
 # The build's own scratch that would otherwise travel: lnInclude trees,
 # logs, the wmake object directories are not under platforms/bin|lib and
 # were never copied; but tutorials may hold results if someone ran one.
