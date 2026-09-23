@@ -85,9 +85,12 @@ jobs:
 
       - name: Case-sensitive build volume
         run: |
-          hdiutil create -size 40g -fs 'Case-sensitive APFS' -volname OpenFOAMBuild -type SPARSEBUNDLE build.sparsebundle
-          hdiutil attach build.sparsebundle -mountpoint /Volumes/OpenFOAMBuild
+          hdiutil create -size 40g -fs 'Case-sensitive APFS' -volname OpenFOAMBuild -type SPARSEBUNDLE "$RUNNER_TEMP/build.sparsebundle"
+          hdiutil attach "$RUNNER_TEMP/build.sparsebundle" -mountpoint /Volumes/OpenFOAMBuild
           echo "WORK=/Volumes/OpenFOAMBuild/build" >> "$GITHUB_ENV"
+          # The pinned downloads live off the volume: the volume is detached
+          # before the acceptance, and the cache's post step must still find them.
+          echo "DEPS_DIR=$HOME/openfoam-deps" >> "$GITHUB_ENV"
 
       - name: Toolchain
         run: brew install flex cmake
@@ -95,17 +98,53 @@ jobs:
       - name: Cache the pinned downloads
         uses: actions/cache@v4
         with:
-          path: /Volumes/OpenFOAMBuild/build/deps
+          path: ~/openfoam-deps
           key: deps-macos-${{ hashFiles('build/config.sh') }}
 
       - name: Build and pack
         run: sh build/build.sh
 
-      - name: Verify from a plain folder
+      # The acceptance must not be able to lean on the build: the kit and the
+      # verification scripts are copied out, the build volume is DETACHED (the
+      # sixth macOS build passed only because the libraries it pointed at on
+      # that volume were still mounted), and the acceptance runs as a
+      # dedicated unprivileged user, so the file-system audit can tell the
+      # kit's writes from the runner's own.
+      - name: Stage the kit off the build volume, detach the volume
+        run: |
+          mkdir -p "$RUNNER_TEMP/kit-out"
+          cp "$WORK/out/"* "$RUNNER_TEMP/kit-out/"
+          sudo rm -rf /private/tmp/ofverify-repo
+          sudo mkdir -p /private/tmp/ofverify-repo
+          sudo cp -R build /private/tmp/ofverify-repo/
+          sudo cp "$WORK/out/openfoam-macos-arm64.zip" /private/tmp/ofverify-repo/
+          sudo chmod -R a+rX /private/tmp/ofverify-repo
+          hdiutil detach /Volumes/OpenFOAMBuild || hdiutil detach -force /Volumes/OpenFOAMBuild
+          [ ! -d /Volumes/OpenFOAMBuild ] || { echo "the build volume is still mounted"; exit 1; }
+
+      - name: A dedicated user for the acceptance
+        run: |
+          sudo dscl . -create /Users/ofverify
+          sudo dscl . -create /Users/ofverify UniqueID 599
+          sudo dscl . -create /Users/ofverify PrimaryGroupID 20
+          sudo dscl . -create /Users/ofverify UserShell /bin/sh
+          sudo dscl . -create /Users/ofverify NFSHomeDirectory /private/tmp/ofverify-home
+          sudo mkdir -p /private/tmp/ofverify-home
+          sudo chown ofverify:staff /private/tmp/ofverify-home
+          sudo -u ofverify id
+
+      - name: Verify from a plain folder, build volume detached, as ofverify
         id: verify
         env:
           LONG: ${{ inputs.long && '1' || '0' }}
-        run: VERIFY_ROOT="$HOME/verify" sh build/verify.sh "$WORK/out/openfoam-macos-arm64.zip"
+        run: |
+          sudo -u ofverify env -i \
+            PATH=/usr/bin:/bin:/usr/sbin:/sbin \
+            HOME=/private/tmp/ofverify-home \
+            VERIFY_ROOT=/private/tmp/ofverify/verify \
+            WORK=/private/tmp/ofverify/work \
+            LONG="$LONG" \
+            sh /private/tmp/ofverify-repo/build/verify.sh /private/tmp/ofverify-repo/openfoam-macos-arm64.zip
 
       # The kit is uploaded even when the acceptance fails: a kit that builds
       # but does not start elsewhere is exactly what has to be inspected.
@@ -113,7 +152,7 @@ jobs:
         if: ${{ always() && steps.verify.outcome != 'skipped' }}
         with:
           name: openfoam-macos-arm64${{ steps.verify.outcome == 'success' && '' || '-unverified' }}
-          path: /Volumes/OpenFOAMBuild/build/out/
+          path: ${{ runner.temp }}/kit-out/
 
   release:
     if: ${{ startsWith(github.ref, 'refs/tags/openfoam-v') && always() && needs.linux-x64.result == 'success' }}

@@ -208,9 +208,18 @@ _offenders="$ROOT/offenders.txt"
 # Prune first, test -newer second: with the test in front of the prune the
 # implicit AND binds it to the prune, and -print fires for every unpruned
 # path (7 519 of them on the first run - the whole image).
+#
+# Only files owned by the user running this count. The acceptance runs as an
+# unprivileged user of its own (the Debian container's `verify`, a dedicated
+# account on the macOS runner), so whatever that user owns and wrote after
+# the marker is what the kit wrote; the operating system's daemons and a CI
+# runner's own agent write as other users and are not the kit's doing (the
+# sixth macOS build listed 1 956 such paths: unified-logging uuidtext, launchd,
+# the runner's diagnostics, a bazel cache). On macOS the data volume is also
+# reachable as /System/Volumes/Data, so the scratch is pruned under both names.
 find / -xdev \
-    \( -path /proc -o -path /sys -o -path /dev -o -path /run -o -path "$ROOT" \) -prune \
-    -o -newer "$ROOT/.start-marker" -print 2>/dev/null > "$_offenders" || true
+    \( -path /proc -o -path /sys -o -path /dev -o -path /run -o -path "$ROOT" -o -path "/System/Volumes/Data$ROOT" \) -prune \
+    -o -user "$(id -u)" -newer "$ROOT/.start-marker" -print 2>/dev/null > "$_offenders" || true
 if [ -s "$_offenders" ]; then
     warn "written outside the kit and the scratch:"
     sed 's/^/      /' "$_offenders" >&2

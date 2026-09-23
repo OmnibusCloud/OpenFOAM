@@ -143,7 +143,78 @@ case "$PLATFORM" in
         fi
         ;;
     macos-arm64)
-        warn "macOS: dylib staging and @loader_path fixups arrive with Phase 0.4; the kit is packed as built"
+        # As built, a macOS kit points at the machine that built it: OpenFOAM's
+        # libraries carry absolute LC_RPATHs into the build volume
+        # (/Volumes/<build>/ThirdParty-v2606/...), fftw names itself by its
+        # absolute install path, and Open MPI's libraries are named by the fake
+        # prefix makeOPENMPI configures with (/darwin64Clang/openmpi-x/lib/...).
+        # The sixth macOS build passed its acceptance only because the build
+        # volume was still mounted. The rule applied here: every load command
+        # that points outside the OS becomes @rpath/<leaf>, every absolute
+        # LC_RPATH goes, and the kit's libraries are found the way they are on
+        # Linux - through the library path KIT.env sets (DYLD_LIBRARY_PATH /
+        # FOAM_LD_LIBRARY_PATH), plus the @loader_path rpaths OpenFOAM already
+        # has. Only rewrites that shorten a load command are made, so header
+        # padding never matters. install_name_tool invalidates arm64 signatures;
+        # every file it touches is re-signed ad hoc (D-19: no Developer ID).
+        need otool
+        need install_name_tool
+        need codesign
+        log "macOS: rewriting load commands to @rpath, removing absolute rpaths, re-signing ad hoc"
+        : > "$WORK/macho-fixed.txt"
+        fix_macho() {
+            find "$KIT" -type f | while IFS= read -r _f; do
+                file "$_f" 2>/dev/null | grep -q 'Mach-O' || continue
+                _args=""
+                _id=$(otool -D "$_f" 2>/dev/null | sed -n '2p')
+                case "$_id" in
+                    /usr/lib/*|/System/*|@*|"") ;;
+                    /*) _args="$_args -id @rpath/${_id##*/}" ;;
+                esac
+                for _d in $(otool -L "$_f" 2>/dev/null | tail -n +2 | awk '{print $1}' | sort -u); do
+                    [ "$_d" = "$_id" ] && continue
+                    case "$_d" in
+                        /usr/lib/*|/System/*|@*) ;;
+                        /*) _args="$_args -change $_d @rpath/${_d##*/}" ;;
+                    esac
+                done
+                for _r in $(otool -l "$_f" 2>/dev/null | awk '/cmd LC_RPATH/{f=1} f && / path /{print $2; f=0}' | sort -u); do
+                    case "$_r" in
+                        /*) _args="$_args -delete_rpath $_r" ;;
+                    esac
+                done
+                if [ -n "$_args" ]; then
+                    # shellcheck disable=SC2086 - the arguments are word lists by construction (no spaces in the kit)
+                    install_name_tool $_args "$_f" 2>>"$WORK/install_name_tool.log" \
+                        || die "install_name_tool failed on $_f (see $WORK/install_name_tool.log)"
+                    codesign -s - --force "$_f" >/dev/null 2>&1 || die "ad-hoc re-signing failed on $_f"
+                    echo "$_f" >> "$WORK/macho-fixed.txt"
+                fi
+            done
+        }
+        # Twice at most: a duplicated LC_RPATH is removed one per pass.
+        fix_macho
+        fix_macho
+        log "  rewritten and re-signed: $(sort -u "$WORK/macho-fixed.txt" | wc -l | tr -d ' ') Mach-O file(s)"
+
+        # The proof, on every Mach-O of the kit: nothing loads from outside the
+        # kit or the OS, no rpath is absolute, every signature verifies.
+        _bad="$WORK/macho-outside.txt"; : > "$_bad"
+        find "$KIT" -type f | while IFS= read -r _f; do
+            file "$_f" 2>/dev/null | grep -q 'Mach-O' || continue
+            otool -L "$_f" 2>/dev/null | tail -n +2 | awk '{print $1}' \
+                | grep -v -E '^(/usr/lib/|/System/|@rpath/|@loader_path/|@executable_path/)' \
+                | sed "s|^|$_f: loads |" >> "$_bad" || true
+            otool -l "$_f" 2>/dev/null | awk '/cmd LC_RPATH/{f=1} f && / path /{print $2; f=0}' \
+                | grep '^/' | sed "s|^|$_f: rpath |" >> "$_bad" || true
+            codesign --verify "$_f" >/dev/null 2>&1 || echo "$_f: signature does not verify" >> "$_bad"
+        done
+        if [ -s "$_bad" ]; then
+            warn "Mach-O files that still point outside the kit, or do not verify:"
+            head -n 30 "$_bad" | sed 's/^/      /' >&2
+            die "$(wc -l < "$_bad" | tr -d ' ') problem(s) - the kit would depend on the machine that built it"
+        fi
+        log "  every Mach-O loads from the kit or the OS only; every signature verifies"
         ;;
 esac
 
