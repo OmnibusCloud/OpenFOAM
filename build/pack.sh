@@ -52,8 +52,12 @@ copy_into() {   # copy_into <src-root> <dst-root> <relative path>...
 }
 
 copy_into "$SRC" "$KIT/$OPENFOAM_DIR" \
-    etc bin META-INFO LICENSE.md README.md CONTRIBUTORS.md CITATION.cff tutorials \
+    etc bin META-INFO LICENSE.md README.md CONTRIBUTORS.md CITATION.cff \
     "platforms/$WM_OPTIONS_EXPECTED/bin" "platforms/$WM_OPTIONS_EXPECTED/lib"
+for _t in $KIT_TUTORIALS; do
+    [ -e "$SRC/tutorials/$_t" ] || die "build/config.sh names a tutorial the pack does not have: $_t"
+    copy_into "$SRC" "$KIT/$OPENFOAM_DIR" "tutorials/$_t"
+done
 
 # The whole ThirdParty runtime for this platform, minus what only a compiler
 # needs (headers, pkg-config, libtool archives, manuals).
@@ -110,6 +114,18 @@ case "$PLATFORM" in
         warn "macOS: dylib staging and @loader_path fixups arrive with Phase 0.4; the kit is packed as built"
         ;;
 esac
+
+# Symbol tables (build/config.sh STRIP_KIT). Only the kit's own ELF files:
+# the staged host libraries are already the distribution's stripped ones.
+if [ "${STRIP_KIT:-1}" = "1" ] && [ "$PLATFORM" = "linux-x64" ]; then
+    need strip
+    log "stripping symbol tables"
+    _stripped=0
+    find "$KIT/$OPENFOAM_DIR/platforms" "$KIT/$THIRDPARTY_DIR/platforms" -type f \( -name "*.$SO_EXT*" -o -path '*/bin/*' \) | while IFS= read -r _f; do
+        file "$_f" 2>/dev/null | grep -q 'ELF' || continue
+        strip --strip-unneeded "$_f" 2>/dev/null || warn "strip refused: $_f"
+    done
+fi
 
 # ---------------------------------------------------------------------------
 # 3. KIT.env - generated from the kit's own etc/bashrc

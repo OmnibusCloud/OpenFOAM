@@ -64,7 +64,7 @@ audits the file system after a run to prove it.
 
 | Platform | Kit folder | Status |
 |---|---|---|
-| Linux x86-64 | `openfoam/linux-x64/` | builds and passes acceptance in a foreign image (2026-09-23: 213 MB zip, 712 MB unpacked; pitzDaily serial and on four ranks, damBreak, file-system audit clean); not yet released |
+| Linux x86-64 | `openfoam/linux-x64/` | builds and passes acceptance in a foreign image (2026-09-23: 155 MB zip, 512 MB unpacked, symbol tables stripped, acceptance tutorials only; pitzDaily serial and on four ranks, damBreak, file-system audit clean); not yet released |
 | macOS arm64 | `openfoam/macos-arm64/` | planned — Phase 0.4 |
 | Windows x86-64 | `openfoam/windows-x64/` | gated goal — upstream's MinGW cross-build, MS-MPI only when the machine owner has installed it |
 
@@ -118,7 +118,7 @@ a Linux build in Docker (`sh build/linux/run.sh all`). Never build from
 | `patches/` | empty by intent |
 | `build/config.sh` | every pin and every option, with the reasoning |
 | `build/build.sh` | orchestrator: copy, ThirdParty, configure, `Allwmake`, pack |
-| `build/pack.sh` | the kit: files, staged runtime libraries, `KIT.env`, `BUILDINFO.txt`, licences, zip |
+| `build/pack.sh` | the kit: the runtime subset (no sources, no headers, the acceptance tutorials only), staged runtime libraries, symbol tables stripped, `KIT.env`, `BUILDINFO.txt`, licences, zip |
 | `build/verify.sh` | acceptance: tutorials serial and parallel from an arbitrary folder with a scrubbed environment, file-system audit |
 | `build/linux/` | Docker image for the build, a foreign image for verification, the local driver |
 | `redistribution/` | the source mirror published beside the kits |

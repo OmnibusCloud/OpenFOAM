@@ -58,6 +58,29 @@ WM_COMPILE_OPTION=Opt
 WM_MPLIB=OPENMPI
 
 # ---------------------------------------------------------------------------
+# Kit contents
+# ---------------------------------------------------------------------------
+#
+# A node never runs a tutorial, so the 109 MB corpus stays in the source
+# pack; the kit carries the cases the acceptance (build/verify.sh) and the
+# controller's oracle run, plus the one geometry motorBike needs. Tests that
+# want the whole corpus take it from the pack.
+KIT_TUTORIALS="incompressible/simpleFoam/pitzDaily
+incompressible/simpleFoam/motorBike
+incompressible/icoFoam/cavity/cavity
+incompressible/pimpleFoam/RAS/TJunction
+multiphase/interFoam/laminar/damBreak/damBreak
+compressible/rhoSimpleFoam/squareBend
+basic/potentialFoam/cylinder
+resources/geometry/motorBike.obj.gz"
+
+# Symbol tables are stripped from the kit's own binaries and libraries:
+# 15-17 % of their size (measured 2026-09-23: libfiniteVolume 49 -> 42 MB,
+# platforms/ 562 -> 471 MB), and no effect on the dynamic symbols that
+# OpenFOAM's error backtraces resolve. STRIP_KIT=0 keeps them.
+STRIP_KIT=1
+
+# ---------------------------------------------------------------------------
 # Platform
 # ---------------------------------------------------------------------------
 #
