@@ -64,7 +64,7 @@ audits the file system after a run to prove it.
 
 | Platform | Kit folder | Status |
 |---|---|---|
-| Linux x86-64 | `openfoam/linux-x64/` | building — Phase 0.2 of the plan |
+| Linux x86-64 | `openfoam/linux-x64/` | builds and passes acceptance in a foreign image (2026-09-23: 213 MB zip, 712 MB unpacked; pitzDaily serial and on four ranks, damBreak, file-system audit clean); not yet released |
 | macOS arm64 | `openfoam/macos-arm64/` | planned — Phase 0.4 |
 | Windows x86-64 | `openfoam/windows-x64/` | gated goal — upstream's MinGW cross-build, MS-MPI only when the machine owner has installed it |
 

@@ -35,8 +35,13 @@ KIT_ZIP="${1:-$WORK/out/openfoam-$KIT_FOLDER.zip}"
 [ -f "$KIT_ZIP" ] || die "no kit archive at $KIT_ZIP"
 
 ROOT="${VERIFY_ROOT:-$WORK/verify}"
+case "$ROOT" in *" "*) die "OpenFOAM cannot work under a path with a space in it (its fileName class strips whitespace) - choose another VERIFY_ROOT" ;; esac
 rm -rf "$ROOT"
-KITDIR="$ROOT/kit dir with space"
+# No space in any path on purpose: OpenFOAM's fileName strips whitespace, so
+# "/kit dir/x" becomes "/kitdir/x" and nothing is found. Found on the first
+# acceptance run (2026-09-23); the controller has to place the kit and the
+# scratch under space-free paths, which is a node-side rule, not a build one.
+KITDIR="$ROOT/kit"
 SCRATCH="$ROOT/scratch"
 mkdir -p "$KITDIR" "$SCRATCH/home" "$SCRATCH/tmp" "$SCRATCH/cases"
 
@@ -93,11 +98,28 @@ case_copy() {   # case_copy <tutorial relative path> <name>
     rm -rf "$SCRATCH/cases/$2"
     cp -R "$TUT/$1" "$SCRATCH/cases/$2"
     chmod -R u+w "$SCRATCH/cases/$2"
+    # What the tutorials' restore0Dir does: the shipped initial fields live
+    # in 0.orig so that a run never dirties them.
+    if [ -d "$SCRATCH/cases/$2/0.orig" ] && [ ! -d "$SCRATCH/cases/$2/0" ]; then
+        cp -R "$SCRATCH/cases/$2/0.orig" "$SCRATCH/cases/$2/0"
+    fi
     echo "$SCRATCH/cases/$2"
 }
 
 step() { log "step: $*"; }
 elapsed() { _now=$(date +%s); echo "$(( _now - $1 )) s"; }
+
+# step_run <log file> <command...>: runs the command with its output in the
+# log; on failure the log's tail is printed before dying, so a run in a
+# throwaway container still tells what happened.
+step_run() {
+    _log="$1"; shift
+    if ! "$@" > "$_log" 2>&1; then
+        warn "failed: $* - last lines of $_log:"
+        tail -n 30 "$_log" | sed 's/^/      /' >&2
+        die "step failed"
+    fi
+}
 
 touch "$ROOT/.start-marker"
 sleep 1
@@ -115,8 +137,8 @@ case "$_mpirun" in "$KIT"/*) ;; *) die "mpirun resolves outside the kit: '$_mpir
 step "pitzDaily, serial (blockMesh + simpleFoam)"
 _t=$(date +%s)
 C=$(case_copy incompressible/simpleFoam/pitzDaily pitzDaily)
-run_in "$C" blockMesh > "$C/log.blockMesh" 2>&1 || die "blockMesh failed, see $C/log.blockMesh"
-run_in "$C" simpleFoam > "$C/log.simpleFoam" 2>&1 || die "simpleFoam failed, see $C/log.simpleFoam"
+step_run "$C/log.blockMesh"  run_in "$C" blockMesh
+step_run "$C/log.simpleFoam" run_in "$C" simpleFoam
 grep -q "^End" "$C/log.simpleFoam" || die "simpleFoam did not reach End"
 grep -q "SIMPLE solution converged" "$C/log.simpleFoam" || warn "pitzDaily did not report convergence (endTime reached instead)"
 _serial_time=$(grep -E "^Time = " "$C/log.simpleFoam" | tail -1)
@@ -131,11 +153,11 @@ FoamFile { version 2.0; format ascii; class dictionary; object decomposeParDict;
 numberOfSubdomains 4;
 method scotch;
 EOF
-run_in "$C" blockMesh > "$C/log.blockMesh" 2>&1 || die "blockMesh failed"
-run_in "$C" decomposePar > "$C/log.decomposePar" 2>&1 || die "decomposePar failed, see $C/log.decomposePar"
-run_in "$C" mpirun -np 4 simpleFoam -parallel > "$C/log.simpleFoam" 2>&1 || die "parallel simpleFoam failed, see $C/log.simpleFoam"
+step_run "$C/log.blockMesh"      run_in "$C" blockMesh
+step_run "$C/log.decomposePar"   run_in "$C" decomposePar
+step_run "$C/log.simpleFoam"     run_in "$C" mpirun -np 4 simpleFoam -parallel
 grep -q "^End" "$C/log.simpleFoam" || die "parallel simpleFoam did not reach End"
-run_in "$C" reconstructPar -latestTime > "$C/log.reconstructPar" 2>&1 || die "reconstructPar failed"
+step_run "$C/log.reconstructPar" run_in "$C" reconstructPar -latestTime
 _par_time=$(grep -E "^Time = " "$C/log.simpleFoam" | tail -1)
 log "  $_par_time  ($(elapsed "$_t"))"
 [ "$_serial_time" = "$_par_time" ] || warn "serial and parallel runs ended at different times: '$_serial_time' vs '$_par_time'"
@@ -144,10 +166,10 @@ log "  $_par_time  ($(elapsed "$_t"))"
 step "damBreak, short (setFields + interFoam)"
 _t=$(date +%s)
 C=$(case_copy multiphase/interFoam/laminar/damBreak/damBreak damBreak)
-run_in "$C" blockMesh > "$C/log.blockMesh" 2>&1 || die "blockMesh failed"
-run_in "$C" setFields > "$C/log.setFields" 2>&1 || die "setFields failed, see $C/log.setFields"
-run_in "$C" foamDictionary -entry endTime -set 0.05 system/controlDict > /dev/null 2>&1 || die "foamDictionary -set failed"
-run_in "$C" interFoam > "$C/log.interFoam" 2>&1 || die "interFoam failed, see $C/log.interFoam"
+step_run "$C/log.blockMesh"      run_in "$C" blockMesh
+step_run "$C/log.setFields"      run_in "$C" setFields
+step_run "$C/log.foamDictionary" run_in "$C" foamDictionary -entry endTime -set 0.05 system/controlDict
+step_run "$C/log.interFoam"      run_in "$C" interFoam
 grep -q "^End" "$C/log.interFoam" || die "interFoam did not reach End"
 log "  $(grep -E "^Time = " "$C/log.interFoam" | tail -1)  ($(elapsed "$_t"))"
 
@@ -156,27 +178,34 @@ if [ "${LONG:-0}" = "1" ]; then
     step "motorBike (surfaceFeatureExtract, blockMesh, snappyHexMesh on six ranks, potentialFoam, simpleFoam)"
     _t=$(date +%s)
     C=$(case_copy incompressible/simpleFoam/motorBike motorBike)
-    cp -R "$C/0.orig" "$C/0"
-    run_in "$C" surfaceFeatureExtract > "$C/log.surfaceFeatureExtract" 2>&1 || die "surfaceFeatureExtract failed"
-    run_in "$C" blockMesh > "$C/log.blockMesh" 2>&1 || die "blockMesh failed"
-    run_in "$C" decomposePar -decomposeParDict system/decomposeParDict.6 > "$C/log.decomposePar" 2>&1 || die "decomposePar failed"
-    run_in "$C" mpirun -np 6 snappyHexMesh -overwrite -parallel -decomposeParDict system/decomposeParDict.6 > "$C/log.snappyHexMesh" 2>&1 || die "snappyHexMesh failed, see $C/log.snappyHexMesh"
-    run_in "$C" mpirun -np 6 topoSet -parallel -decomposeParDict system/decomposeParDict.6 > "$C/log.topoSet" 2>&1 || die "topoSet failed"
+    # The tutorial's Allrun fetches the geometry from the shared resources
+    # directory; the case directory alone has no triSurface.
+    mkdir -p "$C/constant/triSurface"
+    cp "$TUT/resources/geometry/motorBike.obj.gz" "$C/constant/triSurface/" || die "no motorBike.obj.gz under tutorials/resources/geometry"
+    _dd="-decomposeParDict system/decomposeParDict.6"
+    step_run "$C/log.surfaceFeatureExtract" run_in "$C" surfaceFeatureExtract
+    step_run "$C/log.blockMesh"             run_in "$C" blockMesh
+    step_run "$C/log.decomposePar"          run_in "$C" decomposePar $_dd
+    step_run "$C/log.snappyHexMesh"         run_in "$C" mpirun -np 6 snappyHexMesh -overwrite -parallel $_dd
+    step_run "$C/log.topoSet"               run_in "$C" mpirun -np 6 topoSet -parallel $_dd
     for _p in "$C"/processor*; do rm -rf "$_p/0"; cp -R "$C/0.orig" "$_p/0"; done
-    run_in "$C" mpirun -np 6 potentialFoam -parallel -writephi -decomposeParDict system/decomposeParDict.6 > "$C/log.potentialFoam" 2>&1 || die "potentialFoam failed"
-    run_in "$C" mpirun -np 6 simpleFoam -parallel -decomposeParDict system/decomposeParDict.6 > "$C/log.simpleFoam" 2>&1 || die "simpleFoam failed, see $C/log.simpleFoam"
+    step_run "$C/log.potentialFoam"         run_in "$C" mpirun -np 6 potentialFoam -parallel -writephi $_dd
+    step_run "$C/log.simpleFoam"            run_in "$C" mpirun -np 6 simpleFoam -parallel $_dd
     grep -q "^End" "$C/log.simpleFoam" || die "motorBike simpleFoam did not reach End"
-    run_in "$C" reconstructParMesh -constant > "$C/log.reconstructParMesh" 2>&1 || die "reconstructParMesh failed"
-    run_in "$C" reconstructPar -latestTime > "$C/log.reconstructPar" 2>&1 || die "reconstructPar failed"
+    step_run "$C/log.reconstructParMesh"    run_in "$C" reconstructParMesh -constant
+    step_run "$C/log.reconstructPar"        run_in "$C" reconstructPar -latestTime
     log "  $(grep -E "^Time = " "$C/log.simpleFoam" | tail -1)  ($(elapsed "$_t"))"
 fi
 
 # ---------------------------------------------------------------------------
 step "file-system audit: anything written outside the kit and the scratch?"
 _offenders="$ROOT/offenders.txt"
-find / -xdev -newer "$ROOT/.start-marker" \
+# Prune first, test -newer second: with the test in front of the prune the
+# implicit AND binds it to the prune, and -print fires for every unpruned
+# path (7 519 of them on the first run - the whole image).
+find / -xdev \
     \( -path /proc -o -path /sys -o -path /dev -o -path /run -o -path "$ROOT" \) -prune \
-    -o -print 2>/dev/null > "$_offenders" || true
+    -o -newer "$ROOT/.start-marker" -print 2>/dev/null > "$_offenders" || true
 if [ -s "$_offenders" ]; then
     warn "written outside the kit and the scratch:"
     sed 's/^/      /' "$_offenders" >&2

@@ -50,7 +50,7 @@ jobs:
           LONG: ${{ inputs.long && '1' || '0' }}
         run: |
           docker build -q -t openfoam-verify -f build/linux/Dockerfile.verify build/linux
-          docker run --rm \
+          docker run --rm --shm-size=1g \
             -v "$PWD:/repo:ro" \
             -e VERIFY_ROOT=/home/verify/verify -e WORK=/home/verify/work -e LONG="$LONG" \
             openfoam-verify sh /repo/build/verify.sh /repo/.build/out/openfoam-linux-x64.zip
