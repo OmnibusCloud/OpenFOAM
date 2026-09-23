@@ -1,0 +1,176 @@
+#!/bin/sh
+#------------------------------------------------------------------------------
+# =========                 |
+# \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+#  \\    /   O peration     |
+#   \\  /    A nd           | www.openfoam.com
+#    \\/     M anipulation  |
+#-------------------------------------------------------------------------------
+#     Copyright (C) 2011 OpenFOAM Foundation
+#     Copyright (C) 2025 OpenCFD Ltd.
+#------------------------------------------------------------------------------
+# License
+#     This file is part of OpenFOAM, distributed under GPL-3.0-or-later.
+#
+# Script
+#     foamCleanFaMesh
+#
+# Description
+#    Remove the contents of the constant/finite-area/faMesh directory
+#    as per the Foam::faMesh::removeFiles() method.
+#
+#------------------------------------------------------------------------------
+usage() {
+    exec 1>&2
+    while [ "$#" -ge 1 ]; do echo "$1"; shift; done
+    cat <<USAGE
+
+Usage: ${0##*/} [OPTION]
+options:
+  -case <dir>           case directory, default is the cwd
+  -allAreas             all area regions
+  -area-region <name>   area-mesh region
+  -dry-run | -n         report actions but do not remove
+  -help                 print the usage
+
+Remove the contents of the constant/finite-area/faMesh directory as per the
+Foam::faMesh::removeFiles() method.
+
+USAGE
+   exit 1
+}
+
+#------------------------------------------------------------------------------
+# Parse options
+unset caseDir areaRegion optAllAreas optDryRun
+
+while [ "$#" -gt 0 ]
+do
+    case "$1" in
+    ('')  ;;                # Ignore empty option
+    (--)  shift; break ;;   # Stop option parsing
+
+    -h | -help*)
+        usage
+        ;;
+    -dry-run | -n)
+        optDryRun="(dry-run) "
+        ;;
+
+    -case=*)
+        caseDir="${1#*=}"
+        ;;
+
+    -case)
+        [ "$#" -ge 2 ] || usage "'$1' option requires an argument"
+        caseDir="$2"
+        shift
+        ;;
+
+    -allAreas)
+        optAllAreas=true
+        unset areaRegion
+        ;;
+
+    -area-region=*)
+        areaRegion="${1#*=}"
+        unset optAllRegions
+        ;;
+
+    -area-region)
+        [ "$#" -ge 2 ] || usage "'$1' option requires an argument"
+        areaRegion="$2"
+        unset optAllAreas
+        shift
+        ;;
+
+    (*)
+        usage "unknown option/argument: '$*'"
+        ;;
+    esac
+    shift
+done
+
+if [ -n "$caseDir" ]
+then
+    cd "$caseDir" 2>/dev/null || usage "directory does not exist: '$caseDir'"
+fi
+
+
+#------------------------------------------------------------------------------
+
+# Remove files (mesh etc)
+# also remove .gz versions of the same files
+
+removeFiles()
+{
+    local directory="$1"
+
+    for i in \
+        faceLabels \
+        faBoundary \
+    ;
+    do
+        if [ -n "$optDryRun" ]
+        then
+            echo "${optDryRun} rm -rf $directory/{$i,$i.gz}"
+        else
+            rm -rf -- "$directory/$i" "$directory/$i.gz"
+        fi
+    done
+}
+
+#------------------------------------------------------------------------------
+
+if [ -n "$optAllAreas" ]
+then
+    # Discover probable regions
+    for meshDir in constant/finite-area/*/faMesh
+    do
+        if [ -d "$meshDir" ]
+        then
+            removeFiles "$meshDir"
+        fi
+    done
+    unset areaRegion
+fi
+
+meshDir="constant/finite-area/${areaRegion}${areaRegion:+/}faMesh"
+
+if [ -d "$meshDir" ]
+then
+    # [OK] has constant/finite-area/<region>/faMesh
+    :
+
+elif [ -n "$optAllAreas" ]
+then
+    # No constant/finite-area/faMesh, but not an error with -allAreas
+    exit 0
+
+elif [ -n "$caseDir" ]
+then
+    # Specified -case, so no extra magic...
+    echo "Error: no <$meshDir> in $caseDir" 1>&2
+    exit 1
+
+else
+    # Try some other combinations
+    other="${meshDir#constant/}"
+
+    if [ -d "$other" ]
+    then
+        # Probably already within constant/
+        meshDir="$other"
+    elif [ "${PWD##*/}" = faMesh ] && [ -z "$areaRegion" ]
+    then
+        # Apparently already within faMesh/
+        meshDir=.
+    fi
+fi
+
+
+echo "Cleaning ${caseDir:-.}/$meshDir" 1>&2
+
+removeFiles "$meshDir"
+
+#------------------------------------------------------------------------------

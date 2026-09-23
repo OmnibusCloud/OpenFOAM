@@ -1,0 +1,86 @@
+--- lempar.c.orig	2026-01-13 12:06:28.639156597 +0100
++++ lempar.c	2026-01-13 12:09:50.271091082 +0100
+@@ -94,6 +94,11 @@
+ /************* End control #defines *******************************************/
+ #define YY_NLOOKAHEAD ((int)(sizeof(yy_lookahead)/sizeof(yy_lookahead[0])))
+ 
++/* Default linkage for exposed parser routines is global */
++#ifndef YYFUNCAPI
++# define YYFUNCAPI
++#endif
++
+ /* Define the yytestcase() macro to be a no-op if is not already defined
+ ** otherwise.
+ **
+@@ -264,6 +269,7 @@
+ ** Outputs:
+ ** None.
+ */
++YYFUNCAPI
+ void ParseTrace(FILE *TraceFILE, char *zTracePrompt){
+   yyTraceFILE = TraceFILE;
+   yyTracePrompt = zTracePrompt;
+@@ -350,6 +356,7 @@
+ 
+ /* Initialize a new parser that has already been allocated.
+ */
++YYFUNCAPI
+ void ParseInit(void *yypRawParser ParseCTX_PDECL){
+   yyParser *yypParser = (yyParser*)yypRawParser;
+   ParseCTX_STORE
+@@ -379,6 +386,7 @@
+ ** A pointer to a parser.  This pointer is used in subsequent calls
+ ** to Parse and ParseFree.
+ */
++YYFUNCAPI
+ void *ParseAlloc(void *(*mallocProc)(YYMALLOCARGTYPE) ParseCTX_PDECL){
+   yyParser *yypParser;
+   yypParser = (yyParser*)(*mallocProc)( (YYMALLOCARGTYPE)sizeof(yyParser) );
+@@ -447,6 +455,7 @@
+ /*
+ ** Clear all secondary memory allocations from the parser
+ */
++YYFUNCAPI
+ void ParseFinalize(void *p){
+   yyParser *pParser = (yyParser*)p;
+ 
+@@ -483,6 +492,7 @@
+ ** is defined in a %include section of the input grammar) then it is
+ ** assumed that the input pointer is never NULL.
+ */
++YYFUNCAPI
+ void ParseFree(
+   void *p,                    /* The parser to be deleted */
+   void (*freeProc)(void*)     /* Function used to reclaim memory */
+@@ -499,6 +509,7 @@
+ ** Return the peak depth of the stack for a parser.
+ */
+ #ifdef YYTRACKMAXSTACKDEPTH
++YYFUNCAPI
+ int ParseStackPeak(void *p){
+   yyParser *pParser = (yyParser*)p;
+   return pParser->yyhwm;
+@@ -523,6 +534,7 @@
+ ** Return the number of missed state/lookahead combinations.
+ */
+ #if defined(YYCOVERAGE)
++YYFUNCAPI
+ int ParseCoverage(FILE *out){
+   int stateno, iLookAhead, i;
+   int nMissed = 0;
+@@ -876,6 +888,7 @@
+ ** Outputs:
+ ** None.
+ */
++YYFUNCAPI
+ void Parse(
+   void *yyp,                   /* The parser */
+   int yymajor,                 /* The major token code number */
+@@ -1086,6 +1099,7 @@
+ ** Return the fallback token corresponding to canonical token iToken, or
+ ** 0 if iToken has no fallback.
+ */
++YYFUNCAPI
+ int ParseFallback(int iToken){
+ #ifdef YYFALLBACK
+   assert( iToken<(int)(sizeof(yyFallback)/sizeof(yyFallback[0])) );

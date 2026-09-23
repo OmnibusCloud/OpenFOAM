@@ -1,0 +1,15 @@
+# -----------------------------------------------------------------------------
+# boost (header-only version)
+
+BOOST_INCLUDES   =
+BOOST_LIBRARIES  =
+
+ifneq (,$(strip $(BOOST_INC_DIR)))
+
+BOOST_INCLUDES  = \
+    $(foreach dir,$(BOOST_INC_DIR),-I$(dir))
+
+endif
+
+
+# -----------------------------------------------------------------------------

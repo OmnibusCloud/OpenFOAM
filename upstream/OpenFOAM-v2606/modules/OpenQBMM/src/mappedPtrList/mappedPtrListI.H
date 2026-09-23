@@ -1,0 +1,119 @@
+/*---------------------------------------------------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     |
+    \\  /    A nd           | OpenQBMM - www.openqbmm.org
+     \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Code created 2015-2018 by Alberto Passalacqua
+    Contributed 2018-07-31 to the OpenFOAM Foundation
+    Copyright (C) 2018 OpenFOAM Foundation
+    Copyright (C) 2019-2025 Alberto Passalacqua
+-------------------------------------------------------------------------------
+License
+    This file is derivative work of OpenFOAM.
+
+    OpenFOAM is free software: you can redistribute it and/or modify it
+    under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    OpenFOAM is distributed in the hope that it will be useful, but WITHOUT
+    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+    for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
+
+\*---------------------------------------------------------------------------*/
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+template <class mappedType>
+template <typename ...ArgsT>
+mappedType& Foam::mappedPtrList<mappedType>::operator()(ArgsT ...args)
+{
+    #ifdef FULLDEBUG
+    if (!found(args...))
+    {
+        FatalErrorInFunction
+            << "mappedPtrList access with missing key " << mapIndex
+            << " (nDimensions=" << nDimensions_ << ")"
+            << exit(FatalError);
+    }
+    #endif
+
+    label mapIndex = calcMapIndex({args...});
+
+    return this->operator[](map_[mapIndex]);
+}
+
+template <class mappedType>
+template <typename ...ArgsT>
+const mappedType&
+Foam::mappedPtrList<mappedType>::operator()(ArgsT ...args) const
+{
+    #ifdef FULLDEBUG
+    if (!found(args...))
+    {
+        FatalErrorInFunction
+            << "mappedPtrList const access with missing key " << mapIndex
+            << " (nDimensions=" << nDimensions_ << ")"
+            << exit(FatalError);
+    }
+    #endif
+
+    Foam::label mapIndex = calcMapIndex({args...});
+    return this->operator[](map_[mapIndex]);
+}
+
+template <class mappedType>
+const mappedType& Foam::mappedPtrList<mappedType>::operator()
+(
+    const Foam::labelList& list
+) const
+{
+    #ifdef FULLDEBUG
+    if (!found(list))
+    {
+        FatalErrorInFunction
+            << "mappedPtrList const access with missing key " << key
+            << " (nDimensions=" << nDimensions_ << ")"
+            << exit(FatalError);
+    }
+    #endif
+
+    const Foam::label key = listToLabel(list, nDimensions_);
+
+    return this->operator[](map_[key]);
+}
+
+template <class mappedType>
+mappedType& Foam::mappedPtrList<mappedType>::operator()
+(
+    const Foam::labelList& list
+)
+{
+    #ifdef FULLDEBUG
+    if (!found(list))
+    {
+        FatalErrorInFunction
+            << "mappedPtrList access with missing key " << key
+            << " (nDimensions=" << nDimensions_ << ")"
+            << exit(FatalError);
+    }
+    #endif
+
+    const Foam::label key = listToLabel(list, nDimensions_);
+
+    return this->operator[](map_[key]);
+}
+
+template <class mappedType> const Foam::Map<Foam::label>&
+Foam::mappedPtrList<mappedType>::map() const noexcept
+{
+    return map_;
+}
+
+// ************************************************************************* //

@@ -1,0 +1,100 @@
+#!/bin/sh
+cd "${0%/*}" || exit            # Run from OPENFOAM src/ directory only
+set -- -all="${0##*/}" "$@"     # Execute this instead of ./Allwmake
+
+wmake -check-dir "$WM_PROJECT_DIR/src" 2>/dev/null || {
+    echo "Error (${0##*/}) : not located in \$WM_PROJECT_DIR/src"
+    echo "    Check your OpenFOAM environment and installation"
+    exit 1
+}
+if [ -f "$WM_PROJECT_DIR"/wmake/scripts/AllwmakeParseArguments ]
+then  . "$WM_PROJECT_DIR"/wmake/scripts/AllwmakeParseArguments || \
+    echo "Argument parse error"
+else
+    echo "Error (${0##*/}) : WM_PROJECT_DIR appears to be incorrect"
+    echo "    Check your OpenFOAM environment and installation"
+    exit 1
+fi
+
+echo ========================================
+echo Compile OpenFOAM base libraries
+echo ========================================
+
+#------------------------------------------------------------------------------
+
+wmakeLnInclude -u OpenFOAM
+wmakeLnInclude -u OSspecific/"${WM_OSTYPE:-POSIX}"
+
+OSspecific/"${WM_OSTYPE:-POSIX}"/Allwmake $targetType $*
+
+case "$WM_ARCH/$WM_COMPILER" in
+(*ARM64/Mingw*)
+    # Handle Pstream/OpenFOAM cyclic dependency
+    # - compile Pstream as single .o object
+    # - compile OpenFOAM and link against libPstream.o
+    Pstream/Allwmake libo  #<- dummy and mpi
+    FOAM_LINK_DUMMY_PSTREAM=libo wmake $targetType OpenFOAM
+
+    # Extra handling to ensure that export symbols are not pruned
+    special_def_file="${FOAM_LIBBIN:?}/dummy/libPstream.o.def"
+    if [ -f "$special_def_file" ]
+    then
+        # Relink [dummy] libPstream as dll with full export
+        FOAM_EXTRA_CXXFLAGS="$FOAM_EXTRA_CXXFLAGS -Wl,$special_def_file" \
+        WM_MPLIB=dummy Pstream/Allwmake $targetType $*
+    fi
+
+    # Extra handling to ensure that export symbols are not pruned (mpi-lib)
+    unset special_def_file
+    if [ -d "$FOAM_MPI_LIBBIN" ]
+    then
+        special_def_file="${FOAM_MPI_LIBBIN}/libPstream.o.def"
+    elif [ "${FOAM_MPI:-dummy}" != dummy ]
+    then
+        special_def_file="$FOAM_LIBBIN/$FOAM_MPI/libPstream.o.def"
+    fi
+
+    if [ -f "$special_def_file" ]
+    then
+        # Relink [mpi] libPstream as dll with full export
+        FOAM_EXTRA_CXXFLAGS="$FOAM_EXTRA_CXXFLAGS -Wl,$special_def_file" \
+        Pstream/Allwmake-mpi $targetType $*
+    fi
+
+    # Force relink of libOpenFOAM against libPstream.{dll,so}
+    OpenFOAM/Alltouch 2>/dev/null
+    ;;
+(*/Mingw*)
+    # Handle Pstream/OpenFOAM cyclic dependency
+    # - compile Pstream as single .o object
+    # - compile OpenFOAM and link against libPstream.o
+    WM_MPLIB=dummy Pstream/Allwmake libo
+    FOAM_LINK_DUMMY_PSTREAM=libo wmake $targetType OpenFOAM
+
+    # Force relink of libOpenFOAM against libPstream.{dll,so}
+    OpenFOAM/Alltouch 2>/dev/null
+    ;;
+(*)
+    ## # Update version info (as required)
+    ## OpenFOAM/Alltouch -check 2>/dev/null
+
+    # Force relink of libOpenFOAM against libPstream and OSspecific
+    OpenFOAM/Alltouch 2>/dev/null
+    ;;
+esac
+
+Pstream/Allwmake $targetType $*
+wmake $targetType OpenFOAM
+
+# Frequently needed, even for minimal programs
+wmake $targetType fileFormats
+wmake $targetType surfMesh
+wmake $targetType meshTools
+
+#------------------------------------------------------------------------------
+
+echo ========================================
+echo Done OpenFOAM base libraries
+echo ========================================
+
+#------------------------------------------------------------------------------

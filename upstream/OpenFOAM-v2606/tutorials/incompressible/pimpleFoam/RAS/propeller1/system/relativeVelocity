@@ -1,0 +1,38 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2606                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      relativeVelocity;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+relative
+{
+    type    relativeVelocity;
+    libs    (fieldFunctionObjects);
+
+    //executeControl  timeStep;
+    executeControl  writeTime;
+    writeControl    writeTime;
+
+    rotationMode    specified;
+
+    specified   // single zone
+    {
+        origin  (0 0 0);    // Rotation around centre line
+        axis    (1 0 0);
+        n       -25;        // [rev/sec]  (-ve: it is a left-hand propeller)
+
+        zone    innerCylinderSmall;
+    }
+}
+
+// ************************************************************************* //

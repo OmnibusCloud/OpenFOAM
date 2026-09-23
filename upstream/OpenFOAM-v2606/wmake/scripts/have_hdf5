@@ -1,0 +1,288 @@
+#----------------------------------*-sh-*--------------------------------------
+# =========                 |
+# \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+#  \\    /   O peration     |
+#   \\  /    A nd           | www.openfoam.com
+#    \\/     M anipulation  |
+#------------------------------------------------------------------------------
+#     Copyright (C) 2025 OpenCFD Ltd.
+#     Copyright (C) 2026 Keysight Technologies
+#------------------------------------------------------------------------------
+# License
+#     This file is part of OpenFOAM, distributed under GPL-3.0-or-later.
+#
+# Script
+#     have_hdf5
+#
+# Description
+#     Detection/setup of HDF5
+#
+# Requires
+#     HDF5_ARCH_PATH
+#
+# Functions provided
+#     have_hdf5, no_hdf5, echo_hdf5, query_hdf5, search_hdf5
+#     hint_hdf5
+#
+# Variables set on success
+#     HAVE_HDF5
+#     HDF5_ARCH_PATH
+#     HDF5_INC_DIR
+#     HDF5_LIB_DIR
+#     HDF5_LIB_NAME
+#
+# System files can be hiding in a large variety of locations.
+# For x86_64 system:
+#
+# Debian/Ubuntu
+# -------------
+#     include: /usr/lib/x86_64-linux-gnu/hdf5/openmpi/include
+#     library: /usr/lib/x86_64-linux-gnu/hdf5/openmpi/lib
+#              /usr/lib/x86_64-linux-gnu/hdf5/openmpi/libhdf5.so
+#              /usr/lib/x86_64-linux-gnu/libhdf5_openmpi.so
+#
+# RedHat
+# ------
+#     bin dir: /usr/bin
+#     include: /usr/include/openmpi-x86_64
+#     library: /usr/lib64/openmpi/lib
+#
+# when MPI_ARCH_PATH=/usr/lib64/openmpi
+# and mpicc --showme:compile -> -I/usr/include/openmpi-x86_64
+#
+# openSUSE
+# --------
+#     bin dir: /usr/lib64/mpi/gcc/openmpi4/bin
+#     include: /usr/lib64/mpi/gcc/openmpi4/include
+#     library: /usr/lib64/mpi/gcc/openmpi4/lib
+#
+# when MPI_ARCH_PATH=/usr/lib64/mpi/gcc/openmpi4
+#
+#------------------------------------------------------------------------------
+. ${WM_PROJECT_DIR:?}/wmake/scripts/sysFunctions    # General system functions
+
+#------------------------------------------------------------------------------
+
+# Reset
+no_hdf5()
+{
+    unset HAVE_HDF5 HDF5_INC_DIR HDF5_LIB_DIR HDF5_LIB_NAME
+}
+
+
+# Report
+echo_hdf5()
+{
+    echo "hdf5=${HAVE_HDF5:-false}"
+    echo "root=\"$HDF5_ARCH_PATH\""
+    # echo "bindir=\"\""
+    echo "include=\"$HDF5_INC_DIR\""
+    echo "library=\"$HDF5_LIB_DIR\""
+    echo "libname=\"$HDF5_LIB_NAME\""
+}
+
+
+# Hint for enabling
+hint_hdf5()
+{
+    /bin/cat<<INFORMATION 1>&2
+==> hdf5 not found?
+Define manually, enable in OpenFOAM etc/bashrc, or try the following [POSIX]:
+
+    eval \$(foamEtcFile -sh -config hdf5 -- -force)
+
+==
+INFORMATION
+}
+
+
+# Search
+# $1 : prefix (*_ARCH_PATH, system, ...)
+#
+# On success, return 0 and export variables
+# -> HAVE_HDF5, HDF5_INC_DIR, HDF5_LIB_DIR
+search_hdf5()
+{
+    local warn # warn="==> skip hdf5"
+    local incName="hdf5.h"
+    local libName="libhdf5"
+    local localDir="hdf5"
+
+    local prefix="${1:-system}"
+    local header library
+
+    local mpiPrefix="$MPI_ARCH_PATH"
+    local mpiName="${mpiPrefix##*/}"
+    local mpiPrefix_pkg
+
+    # The prefix can be something like <path>/hdf5-system/sys-openmpi
+    # in which case 'isSystem $prefix' test would fail.
+    # - strip out the FOAM_MPI for those cases
+
+    local prefixParent
+    case "$prefix" in (*/"$FOAM_MPI") prefixParent="${prefix%/*}" ;; esac
+
+    # For system MPI installations, may resolve to /usr as the root
+    # (and thus the name) - need a more meaningful name.
+    if [ "${mpiName:-usr}" = usr ]
+    then
+        case "$FOAM_MPI" in
+        (*mpich*)    mpiName=mpich ;;
+        (*mvapich2*) mpiName=mvapich2 ;;
+        (*openmpi*)  mpiName=openmpi ;;
+        esac
+    fi
+
+    # Sometimes have "/usr/.../hdf5/openmpi" (for example)
+    # - splice the localDir into the mpiPrefix
+    if [ -z "$mpiPrefix_pkg" ] && [ -n "$localDir" ]
+    then
+        case "$mpiPrefix" in
+        (/?*/?*)
+            mpiPrefix_pkg="${mpiPrefix%/*}/${localDir}/${mpiPrefix##*/}"
+            [ -d "$mpiPrefix_pkg" ] || unset mpiPrefix_pkg
+            ;;
+        esac
+    fi
+
+    # ----------------------------------
+    if isNone "$prefix"
+    then
+        [ -n "$warn" ] && echo "$warn (disabled)"
+        return 1
+    elif hasAbsdir "$prefix"
+    then
+        header=$(findFirstFile  \
+            "$prefix/include/$localDir/$FOAM_MPI/$incName" \
+            "$prefix/include/$FOAM_MPI/$localDir/$incName" \
+            "$prefix/include/$FOAM_MPI/$incName" \
+            "$prefix/include/$localDir/$incName" \
+            "$prefix/include/$incName" \
+            "$mpiPrefix/include/$incName" \
+            "$prefix/include/${mpiName}/$incName" \
+            "$prefix/include/${mpiName}-$(uname -m)/$incName" \
+        )
+        # Search for library at same level as include
+        if [ -n "$header" ]
+        then
+            library="${header%/include/*}"
+            library=$(findLibrary -prefix="$library" -name="$libName")
+        fi
+    elif isSystem "$prefix" || isSystem "$prefixParent"
+    then
+        # Always prefer MPI-specific files
+        header=$(findFirstFile \
+            "/usr/local/include/$localDir/$incName" \
+            "/usr/local/include/$incName" \
+            "${mpiPrefix_pkg:+$mpiPrefix_pkg/include/$incName}" \
+            "$mpiPrefix/$localDir/include/$incName" \
+            "$mpiPrefix/include/$incName" \
+            "/usr/include/$localDir/${mpiName}/$incName" \
+            "/usr/include/$localDir/$incName" \
+            "/usr/include/${mpiName}/$incName" \
+            "/usr/include/${mpiName}-$(uname -m)/$incName" \
+            "/usr/include/$incName" \
+        )
+        prefix=$(sysPrefix "$header")
+    else
+        unset prefix
+    fi
+    # ----------------------------------
+    # Retain localDir (the package name without special qualifiers)
+
+    # Header
+    [ -n "$header" ] || {
+        [ -n "$warn" ] && echo "$warn (no header)"
+        return 2
+    }
+
+    # Library searching
+    if [ -z "$library" ]
+    then
+        local p
+        for p in "$mpiPrefix_pkg" "$mpiPrefix" "$prefix"
+        do
+            [ -n "$p" ] || continue
+            library=$(findLibrary -prefix="$p" -name="$libName" -local="$localDir")
+            [ -n "$library" ] && break
+        done
+    fi
+
+    [ -n "$library" ] || {  # Still nothing
+        [ -n "$warn" ] && echo "$warn (no library)"
+        return 2
+    }
+
+    # ----------------------------------
+
+    # OK
+    export HAVE_HDF5=true
+    export HDF5_ARCH_PATH="$prefix"
+    export HDF5_INC_DIR="${header%/*}"     # dirname
+    export HDF5_LIB_DIR="${library%/*}"    # dirname
+
+    library="${library##*/}"  # basename
+    library="${library%%.*}"  # w/o extension
+    library="${library#lib}"  # w/o 'lib' prefix (eg, linking)
+    export HDF5_LIB_NAME="$library"
+}
+
+
+# Output as per search_* function
+have_hdf5()
+{
+    local warn # warn="==> skip hdf5"
+    local config="config.sh/hdf5"
+    local file
+
+    if file="$("$WM_PROJECT_DIR"/bin/foamEtcFile "$config")"
+    then
+        . "$file"
+    else
+        [ -n "$warn" ] && echo "$warn (no $config)"
+        return 2
+    fi
+
+    search_hdf5 "$HDF5_ARCH_PATH"
+}
+
+
+# Query settings
+query_hdf5()
+{
+    local config="config.sh/hdf5"
+    local file
+
+    if file="$("$WM_PROJECT_DIR"/bin/foamEtcFile -mode=o "$config")"
+    then
+        . "$file"
+        _process_query hdf5 "$HDF5_ARCH_PATH"
+    else
+        echo "(no $config)" 1>&2
+        echo "hdf5=unknown"
+    fi
+}
+
+
+#------------------------------------------------------------------------------
+
+# Reset
+no_hdf5
+
+# Test/query
+case "$1" in
+-test | -debug-test)
+    [ "$1" = "-debug-test" ] && set -x
+    have_hdf5
+    [ "$1" = "-debug-test" ] && set +x
+    echo_hdf5
+    ;;
+-query)
+    query_hdf5
+    ;;
+-hint)
+    hint_hdf5
+    ;;
+esac
+
+#------------------------------------------------------------------------------

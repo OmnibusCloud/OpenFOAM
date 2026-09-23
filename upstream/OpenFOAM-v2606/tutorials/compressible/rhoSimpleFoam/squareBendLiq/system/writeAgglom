@@ -1,0 +1,154 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2606                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+// Writes one volScalarField per GAMG level, mapping coarse-cell indices back
+// onto the fine mesh:
+//
+//   GAMGAgglom_p_level0  – fine cell → 1st coarse cluster
+//   GAMGAgglom_p_level1  – fine cell → 2nd coarse cluster
+//   ...
+//
+//
+// - Solution variable (to scan fvSolution for) to be provided as 'field' in FO.
+// - GAMG settings read directly from <field>-solver entry in fvSolution.
+// - A per-timestep evaluation of the GAMG agglomeration requires:
+//   1.) 'cacheAgglomeration true' in fvSolution so the solver keeps the
+//       GAMGAgglomeration object on the objectRegistry between solve and write
+//   2.) 'removeRegisteredObject(GAMGAgglomeration)' placed AFTER this FO
+//       (writeGAMGAgglomeration) to delete again and eventually update the
+//       GAMGAgglomeration for the next timestep
+//   3.) Run solver WITHOUT -postProcess option!!!
+// ---------------------------------------------------------------------------
+
+writeGAMGAgglomeration
+{
+    type            coded;
+    libs            (utilityFunctionObjects);
+    name            writeGAMGAgglomeration;
+
+    timeStart       0;
+    timeEnd         1;
+    writeControl    timeStep;
+    writeInterval   1;
+
+    // Field of interest - default: 'p'.
+    field           p;
+
+    // -------------------------------------------------------------------------
+
+    codeInclude
+    #{
+        #include "GAMGAgglomeration.H"
+    #};
+
+    codeData
+    #{
+        word fieldName_;
+        word agglomName_;
+    #};
+
+    codeRead
+    #{
+        fieldName_ = dict.getOrDefault<word>("field", "p");
+
+        // Derive the objectRegistry key from fvSolution so it stays in sync
+        // with whatever the solver uses (default: GAMGAgglomeration::typeName).
+        // Guess always 'GAMGAgglomeration'? Maybe not needed at all then????
+        agglomName_ = mesh().solution()
+            .solver(fieldName_)
+            .getOrDefault<word>("name", GAMGAgglomeration::typeName);
+
+        Info<< name() << " : field=" << fieldName_
+            << "  agglomName=" << agglomName_ << nl;
+
+        return true;
+    #};
+
+    codeWrite
+    #{
+        const fvMesh& fMesh = mesh();
+        if (UPstream::parRun())
+        {
+            WarningInFunction
+                << "Running in parallel. When using a processorAgglomerator"
+                << " not all fields will be written for all levels"
+                << nl
+                << endl;
+        }
+
+        if (!fMesh.foundObject<GAMGAgglomeration>(agglomName_))
+        {
+            WarningInFunction
+                << "GAMGAgglomeration '" << agglomName_
+                << "' not found on objectRegistry. "
+                   "Set cacheAgglomeration true for field "
+                << fieldName_ << " in fvSolution." << endl;
+            return true;
+        }
+
+        const GAMGAgglomeration& agglom =
+            fMesh.lookupObject<GAMGAgglomeration>(agglomName_);
+
+        // Number of agglomeration levels
+        const label nLevels = agglom.size();
+        Info<< name() << " : " << nLevels << " levels" << nl;
+        // Initialise 'cellsPerLevel' with cell labels for agglomeration level 0
+        labelField cellsPerLevel(agglom.restrictAddressing(0));
+        for (label level = 0; level < nLevels; ++level)
+        {
+            if (!agglom.hasMeshLevel(level))
+            {
+                continue;
+            }
+
+            // Update 'cellsPerLevel' for higher levels > 0
+            if (level > 0)
+            {
+                const labelField& addr = agglom.restrictAddressing(level);
+                labelField next(cellsPerLevel.size());
+                forAll(next, cellI)
+                {
+                    next[cellI] = addr[cellsPerLevel[cellI]];
+                }
+                cellsPerLevel.transfer(next);
+            }
+
+            // Actual agglomeration field per level
+            volScalarField agglomField
+            (
+                IOobject
+                (
+                    "GAMGAgglom_" + fieldName_ + "_level" + Foam::name(level),
+                    fMesh.time().timeName(),
+                    fMesh,
+                    IOobject::NO_READ,
+                    IOobject::NO_WRITE,
+                    IOobject::NO_REGISTER
+                ),
+                fMesh,
+                dimensionedScalar(dimless, Zero)
+            );
+
+            // Fill agglomeration field with coarse cluster level
+            forAll(agglomField, cellI)
+            {
+                agglomField[cellI] = scalar(cellsPerLevel[cellI]);
+            }
+
+            Info<< "  Writing "
+                << agglomField.name()
+                << " : " << agglom.nCells(level)
+                << " cells" << nl;
+            agglomField.write();
+        }
+
+        return true;
+    #};
+}
+
+
+// ************************************************************************* //

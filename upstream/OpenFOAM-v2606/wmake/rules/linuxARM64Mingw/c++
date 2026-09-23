@@ -1,0 +1,39 @@
+#------------------------------------------------------------------------------
+# mingw cross-compilation (ARM64) - clang-based [llvm-mingw]
+#
+# NB: standard is 'gnu++' (not 'c++') to ensure __STRICT_ANSI__ is not defined
+#------------------------------------------------------------------------------
+include $(GENERAL_RULES)/Clang/c++
+
+CC         := aarch64-w64-mingw32-clang++ -std=gnu++17
+c++ARCH    := -pthread
+
+ifneq (,$(strip $(WM_COMPILE_OPTION)))
+    sinclude $(DEFAULT_RULES)/c++$(WM_COMPILE_OPTION)
+endif
+
+c++FLAGS    = \
+    $(c++ARCH) $(GFLAGS) $(c++WARN) $(c++OPT) $(c++DBUG) $(ptFLAGS) \
+    $(FOAM_EXTRA_CXXFLAGS) $(LIB_HEADER_DIRS)
+
+Ctoo        = $(WM_SCHEDULER) $(CC) $(c++FLAGS) -c $< -o $@
+cctoo       = $(Ctoo)
+cpptoo      = $(Ctoo)
+cxxtoo      = $(Ctoo)
+
+LINK_LIBS   = $(c++DBUG)
+
+LINKLIBSO   = $(CC) $(c++FLAGS) -shared \
+    -Wl,--output-def=$(LIB).def \
+    -Wl,--out-implib=$(LIB).dll.a \
+    -Wl,--no-undefined \
+    -Wl,--enable-auto-import \
+    -Wl,--strip-all
+
+LINKEXE     = $(CC) $(c++FLAGS) \
+    -static-libgcc -static-libstdc++ \
+    -Wl,--enable-auto-import \
+    -Wl,--strip-all \
+    -mconsole
+
+#------------------------------------------------------------------------------

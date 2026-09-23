@@ -1,0 +1,163 @@
+/*---------------------------------------------------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     |
+    \\  /    A nd           | www.openfoam.com
+     \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2018 OpenFOAM Foundation
+-------------------------------------------------------------------------------
+License
+    This file is part of OpenFOAM.
+
+    OpenFOAM is free software: you can redistribute it and/or modify it
+    under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    OpenFOAM is distributed in the hope that it will be useful, but WITHOUT
+    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+    for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
+
+Class
+    Foam::functionObjects::phaseForces
+
+Description
+    This function object calculates and outputs the blended interfacial forces
+    acting on a given phase, i.e. drag, virtual mass, lift, wall-lubrication and
+    turbulent dispersion. Note that it works only in run-time processing mode
+    and in combination with the reactingEulerFoam solvers.
+
+    For a simulation involving more than two phases, the accumulated force is
+    calculated by looping over all phasePairs involving that phase. The fields
+    are stored in the database so that they can be processed further, e.g. with
+    the fieldAveraging functionObject.
+
+Usage
+    Minimal example by using \c system/controlDict.functions:
+    \verbatim
+    phaseForces.waterFO
+    {
+        // Mandatory entries
+        type                phaseForces;
+        libs                (reactingEulerFoamFunctionObjects);
+        phase               <word>;
+
+        // Inherited entries
+        ...
+    }
+
+    where the entries mean:
+    \table
+      Property | Description                        | Type | Reqd | Deflt
+      type     | Type name: phaseForces             | word | yes  | -
+      libs     | Library name: reactingEulerFoamFunctionObjects | word | yes | -
+      phase    | Name of operand phase              | word | yes  | -
+    \endtable
+
+    The inherited entries are elaborated in:
+      - \link functionObject.H \endlink
+
+SourceFiles
+    phaseForces.C
+
+\*---------------------------------------------------------------------------*/
+
+#ifndef Foam_functionObjects_phaseForces_H
+#define Foam_functionObjects_phaseForces_H
+
+#include "fvMeshFunctionObject.H"
+#include "phaseSystem.H"
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+namespace Foam
+{
+namespace functionObjects
+{
+
+/*---------------------------------------------------------------------------*\
+                         Class phaseForces Declaration
+\*---------------------------------------------------------------------------*/
+
+class phaseForces
+:
+    public fvMeshFunctionObject
+{
+    // Private Member Functions
+
+        //- Disallow default bitwise copy construct
+        phaseForces(const phaseForces&);
+
+        //- Disallow default bitwise assignment
+        void operator=(const phaseForces&);
+
+
+protected:
+
+    // Protected Data
+
+        HashPtrTable<volVectorField> forceFields_;
+
+        //- Phase for which forces are evaluated
+        const phaseModel& phase_;
+
+        //- Constant access to phaseSystem
+        const phaseSystem& fluid_;
+
+
+    // Protected Member Functions
+
+        //- Evaluate and return non-drag force
+        template<class modelType>
+        tmp<volVectorField> nonDragForce(const phasePair& key) const;
+
+
+public:
+
+    //- Runtime type information
+    TypeName("phaseForces");
+
+
+    // Constructors
+
+        //- Construct from name, Time and dictionary
+        phaseForces
+        (
+            const word& name,
+            const Time& runTime,
+            const dictionary&
+        );
+
+
+    //- Destructor
+    virtual ~phaseForces();
+
+
+    // Member Functions
+
+        //- Read the function-object dictionary
+        virtual bool read(const dictionary& dict);
+
+        //- Execute the function-object operations
+        virtual bool execute();
+
+        //- Write the function-object results
+        virtual bool write();
+};
+
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+} // End namespace functionObjects
+} // End namespace Foam
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#endif
+
+// ************************************************************************* //

@@ -1,0 +1,3 @@
+Test-dictionaryCopy.cxx
+
+EXE = $(FOAM_USER_APPBIN)/Test-dictionaryCopy

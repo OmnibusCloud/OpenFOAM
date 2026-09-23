@@ -1,0 +1,14 @@
+/* Note: Sloan renumbering (graph-based) does not need boost libraries */
+
+include $(GENERAL_RULES)/boost-header-only
+
+EXE_INC = \
+    $(c++LESSWARN) \
+    $(BOOST_INCLUDES) \
+    -I$(LIB_SRC)/meshTools/lnInclude \
+    -I$(LIB_SRC)/renumber/renumberMethods/lnInclude
+
+LIB_LIBS = \
+    -lmeshTools \
+    -lrenumberMethods \
+    $(BOOST_LIBRARIES)

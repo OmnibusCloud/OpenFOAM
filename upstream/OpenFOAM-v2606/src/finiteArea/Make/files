@@ -1,0 +1,161 @@
+faMesh/faGlobalMeshData/faGlobalMeshData.C
+faMesh/faMeshesRegistry.C
+faMesh/faMeshRegistry.C
+faMesh/faMesh.C
+faMesh/faMeshNew.C
+faMesh/faMeshDemandDrivenData.C
+faMesh/faMeshPatches.C
+faMesh/faMeshTopology.C
+faMesh/faMeshUpdate.C
+faMesh/faMeshBoundaryHalo.C
+faMesh/faBoundaryMesh/faBoundaryMesh.C
+faMesh/faBoundaryMesh/faBoundaryMeshEntries.C
+
+faceZone = faMesh/zones/faceZone/faFaceZone.cxx
+
+faMesh/faMeshSubset/faMeshSubset.cxx
+faMesh/faMeshTools/faMeshTools.cxx
+faMesh/faMeshTools/faMeshToolsChecks.cxx
+faMesh/faMeshTools/faMeshToolsProcAddr.cxx
+
+faPatches = faMesh/faPatches
+$(faPatches)/faPatch/faPatch.C
+$(faPatches)/faPatch/faPatchData.C
+$(faPatches)/faPatch/faPatchNew.C
+$(faPatches)/basic/coupled/coupledFaPatch.C
+$(faPatches)/constraint/empty/emptyFaPatch.C
+$(faPatches)/constraint/processor/processorFaPatch.C
+$(faPatches)/constraint/wedge/wedgeFaPatch.C
+$(faPatches)/constraint/cyclic/cyclicFaPatch.C
+$(faPatches)/constraint/symmetry/symmetryFaPatch.C
+$(faPatches)/other/ignore/ignoreFaPatch.C
+
+distributed/faMeshDistributor.cxx
+distributed/faMeshDistributorNew.cxx
+
+ensight = output/ensight
+$(ensight)/ensightFaMesh.C
+
+faMeshMapper = faMesh/faMeshMapper
+$(faMeshMapper)/faMeshMapper.C
+$(faMeshMapper)/faAreaMapper.C
+$(faMeshMapper)/faEdgeMapper.C
+$(faMeshMapper)/faPatchMapper.C
+
+faPatchFields = fields/faPatchFields
+$(faPatchFields)/faPatchField/faPatchFieldBase.cxx
+$(faPatchFields)/faPatchField/faPatchFields.cxx
+
+basicFaPatchFields = $(faPatchFields)/basic
+$(basicFaPatchFields)/calculated/calculatedFaPatchFields.cxx
+$(basicFaPatchFields)/extrapolatedCalculated/extrapolatedCalculatedFaPatchFields.cxx
+$(basicFaPatchFields)/coupled/coupledFaPatchFields.cxx
+$(basicFaPatchFields)/fixedValue/fixedValueFaPatchFields.cxx
+$(basicFaPatchFields)/fixedGradient/fixedGradientFaPatchFields.cxx
+$(basicFaPatchFields)/mixed/mixedFaPatchFields.cxx
+$(basicFaPatchFields)/sliced/slicedFaPatchFields.cxx
+$(basicFaPatchFields)/transform/transformFaPatchFields.cxx
+$(basicFaPatchFields)/zeroGradient/zeroGradientFaPatchFields.cxx
+$(basicFaPatchFields)/zeroValue/zeroValueFaPatchFields.cxx
+
+constraintFaPatchFields = $(faPatchFields)/constraint
+$(constraintFaPatchFields)/empty/emptyFaPatchFields.cxx
+$(constraintFaPatchFields)/processor/processorFaPatchFields.cxx
+$(constraintFaPatchFields)/wedge/wedgeFaPatchFields.cxx
+$(constraintFaPatchFields)/cyclic/cyclicFaPatchFields.cxx
+$(constraintFaPatchFields)/symmetry/symmetryFaPatchFields.cxx
+
+derivedFaPatchFields = $(faPatchFields)/derived
+$(derivedFaPatchFields)/fixedValueOutflow/fixedValueOutflowFaPatchFields.cxx
+$(derivedFaPatchFields)/inletOutlet/inletOutletFaPatchFields.cxx
+$(derivedFaPatchFields)/outletInlet/outletInletFaPatchFields.cxx
+$(derivedFaPatchFields)/slip/slipFaPatchFields.cxx
+$(derivedFaPatchFields)/edgeNormalFixedValue/edgeNormalFixedValueFaPatchVectorField.cxx
+$(derivedFaPatchFields)/timeVaryingUniformFixedValue/timeVaryingUniformFixedValueFaPatchFields.cxx
+$(derivedFaPatchFields)/uniformFixedGradient/uniformFixedGradientFaPatchFields.cxx
+$(derivedFaPatchFields)/uniformFixedValue/uniformFixedValueFaPatchFields.cxx
+$(derivedFaPatchFields)/uniformMixed/uniformMixedFaPatchFields.cxx
+$(derivedFaPatchFields)/ignore/ignoreFaPatchFields.cxx
+$(derivedFaPatchFields)/clampedPlate/clampedPlateFaPatchFields.cxx
+
+faePatchFields = fields/faePatchFields
+$(faePatchFields)/faePatchField/faePatchFieldBase.cxx
+$(faePatchFields)/faePatchField/faePatchFields.cxx
+
+basicFaePatchFields = $(faePatchFields)/basic
+$(basicFaePatchFields)/calculated/calculatedFaePatchFields.cxx
+$(basicFaePatchFields)/coupled/coupledFaePatchFields.cxx
+$(basicFaePatchFields)/fixedValue/fixedValueFaePatchFields.cxx
+$(basicFaePatchFields)/sliced/slicedFaePatchFields.cxx
+$(basicFaePatchFields)/zeroValue/zeroValueFaePatchFields.cxx
+
+constraintFaePatchFields = $(faePatchFields)/constraint
+$(constraintFaePatchFields)/empty/emptyFaePatchFields.cxx
+$(constraintFaePatchFields)/processor/processorFaePatchFields.cxx
+$(constraintFaePatchFields)/wedge/wedgeFaePatchFields.cxx
+$(constraintFaePatchFields)/cyclic/cyclicFaePatchFields.cxx
+$(constraintFaePatchFields)/symmetry/symmetryFaePatchFields.cxx
+
+fields/areaFields/areaFields.cxx
+fields/edgeFields/edgeFields.cxx
+
+faMatrices/faMatrices.C
+faMatrices/faScalarMatrix/faScalarMatrix.C
+
+edgeInterpolation = interpolation/edgeInterpolation
+$(edgeInterpolation)/edgeInterpolation.C
+$(edgeInterpolation)/edgeInterpolationScheme/edgeInterpolationSchemes.C
+
+schemes = $(edgeInterpolation)/schemes
+$(schemes)/linear/linearEdgeInterpolationMake.C
+$(schemes)/upwind/upwindEdgeInterpolationMake.C
+$(schemes)/linearUpwind/linearUpwindEdgeInterpolationMake.C
+$(schemes)/Gamma/GammaEdgeInterpolationMake.C
+$(schemes)/blended/blendedEdgeInterpolationMake.C
+$(schemes)/skewCorrected/skewCorrectedEdgeInterpolationMake.C
+$(schemes)/leastSquares/leastSquaresEdgeInterpolationMake.C
+
+finiteArea/fa/fa.C
+
+ddtSchemes = finiteArea/ddtSchemes
+$(ddtSchemes)/faDdtScheme/faDdtSchemes.C
+$(ddtSchemes)/steadyStateFaDdtScheme/steadyStateFaDdtSchemes.C
+$(ddtSchemes)/EulerFaDdtScheme/EulerFaDdtSchemes.C
+$(ddtSchemes)/backwardFaDdtScheme/backwardFaDdtSchemes.C
+$(ddtSchemes)/boundedBackwardFaDdtScheme/boundedBackwardFaDdtScheme.C
+
+d2dt2Schemes = finiteArea/d2dt2Schemes
+$(d2dt2Schemes)/faD2dt2Scheme/faD2dt2Schemes.C
+$(d2dt2Schemes)/EulerFaD2dt2Scheme/EulerFaD2dt2Schemes.C
+
+divSchemes = finiteArea/divSchemes
+finiteArea/fam/vectorFamDiv.C
+$(divSchemes)/faDivScheme/faDivSchemes.C
+$(divSchemes)/gaussFaDivScheme/gaussFaDivSchemes.C
+
+gradSchemes = finiteArea/gradSchemes
+$(gradSchemes)/faGradScheme/faGradSchemes.C
+$(gradSchemes)/gaussFaGrad/gaussFaGrads.C
+$(gradSchemes)/leastSquaresFaGrad/leastSquaresFaVectors.C
+$(gradSchemes)/leastSquaresFaGrad/leastSquaresFaGrads.C
+
+limitedGradSchemes = $(gradSchemes)/limitedGradSchemes
+$(limitedGradSchemes)/faceLimitedFaGrad/faceLimitedFaGrads.C
+$(limitedGradSchemes)/edgeLimitedFaGrad/edgeLimitedFaGrads.C
+
+lnGradSchemes = finiteArea/lnGradSchemes
+$(lnGradSchemes)/lnGradScheme/lnGradSchemes.C
+$(lnGradSchemes)/uncorrectedLnGrad/uncorrectedLnGrads.C
+$(lnGradSchemes)/correctedLnGrad/correctedLnGrads.C
+$(lnGradSchemes)/limitedLnGrad/limitedLnGrads.C
+$(lnGradSchemes)/fourthLnGrad/fourthLnGrads.C
+
+laplacianSchemes = finiteArea/laplacianSchemes
+$(laplacianSchemes)/faLaplacianScheme/faLaplacianSchemes.C
+$(laplacianSchemes)/gaussFaLaplacianScheme/gaussFaLaplacianSchemes.C
+
+convectionSchemes = finiteArea/convectionSchemes
+$(convectionSchemes)/faConvectionScheme/faConvectionSchemes.C
+$(convectionSchemes)/gaussFaConvectionScheme/gaussFaConvectionSchemes.C
+
+LIB = $(FOAM_LIBBIN)/libfiniteArea

@@ -1,0 +1,232 @@
+/*---------------------------------------------------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     |
+    \\  /    A nd           | www.openfoam.com
+     \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2025 OpenCFD Ltd.
+-------------------------------------------------------------------------------
+License
+    This file is part of OpenFOAM.
+
+    OpenFOAM is free software: you can redistribute it and/or modify it
+    under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    OpenFOAM is distributed in the hope that it will be useful, but WITHOUT
+    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+    for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
+
+Class
+    Foam::emptyFvPatchField
+
+Group
+    grpConstraintBoundaryConditions
+
+Description
+    This boundary condition provides an 'empty' condition for reduced
+    dimensions cases, i.e. 1- and 2-D geometries.  Apply this condition to
+    patches whose normal is aligned to geometric directions that do not
+    constitute solution directions.
+
+    The "value" entry is NO_READ, NO_WRITE.
+
+Usage
+    Example of the boundary condition specification:
+    \verbatim
+    <patchName>
+    {
+        type    empty;
+    }
+    \endverbatim
+
+SourceFiles
+    emptyFvPatchField.txx
+
+\*---------------------------------------------------------------------------*/
+
+#ifndef Foam_emptyFvPatchField_H
+#define Foam_emptyFvPatchField_H
+
+#include "fvPatchField.H"
+#include "emptyFvPatch.H"
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+namespace Foam
+{
+
+/*---------------------------------------------------------------------------*\
+                      Class emptyFvPatchField Declaration
+\*---------------------------------------------------------------------------*/
+
+template<class Type>
+class emptyFvPatchField
+:
+    public fvPatchField<Type>
+{
+    typedef emptyFvPatchField<Type> this_bctype;
+    typedef fvPatchField<Type> parent_bctype;
+
+public:
+
+    //- Runtime type information
+    TypeName(emptyFvPatch::typeName_());  // fieldTypes::emptyTypeName_()
+
+
+    // Constructors
+
+        //- Construct from patch and internal field
+        emptyFvPatchField
+        (
+            const fvPatch&,
+            const DimensionedField<Type, volMesh>&
+        );
+
+        //- Construct from patch, internal field and dictionary.
+        //- The "value" entry is NO_READ.
+        emptyFvPatchField
+        (
+            const fvPatch&,
+            const DimensionedField<Type, volMesh>&,
+            const dictionary&
+        );
+
+        //- Construct by mapping onto a new patch
+        emptyFvPatchField
+        (
+            const this_bctype&,
+            const fvPatch&,
+            const DimensionedField<Type, volMesh>&,
+            const fvPatchFieldMapper&
+        );
+
+        //- Construct as copy setting internal field reference
+        emptyFvPatchField
+        (
+            const this_bctype&,
+            const DimensionedField<Type, volMesh>&
+        );
+
+        //- No copy without an internal field
+        emptyFvPatchField(const this_bctype&) = delete;
+
+        //- Clone with an internal field reference
+        virtual tmp<fvPatchField<Type>> clone
+        (
+            const DimensionedField<Type, volMesh>& iF
+        ) const
+        {
+            return fvPatchField<Type>::Clone(*this, iF);
+        }
+
+
+    // Member Functions
+
+        // Mapping functions
+
+            //- Map (and resize as needed) from self given a mapping object
+            virtual void autoMap
+            (
+                const fvPatchFieldMapper&
+            )
+            {}
+
+            //- Reverse map the given fvPatchField onto this fvPatchField
+            virtual void rmap
+            (
+                const fvPatchField<Type>&,
+                const labelList&
+            )
+            {}
+
+
+        // Evaluation Functions
+
+            //- Update the coefficients associated with the patch field
+            //  This only checks to see the case is actually 1D or 2D
+            //  for which this boundary condition is valid
+            void updateCoeffs();
+
+
+            //- Return the matrix diagonal coefficients corresponding to the
+            //  evaluation of the value of this patchField with given weights
+            virtual tmp<Field<Type>> valueInternalCoeffs
+            (
+                const tmp<scalarField>&
+            ) const
+            {
+                return tmp<Field<Type>>::New();
+            }
+
+            //- Return the matrix source coefficients corresponding to the
+            //  evaluation of the value of this patchField with given weights
+            virtual tmp<Field<Type>> valueBoundaryCoeffs
+            (
+                const tmp<scalarField>&
+            ) const
+            {
+                return tmp<Field<Type>>::New();
+            }
+
+            //- Return the matrix diagonal coefficients corresponding to the
+            //- evaluation of the gradient of this patchField
+            tmp<Field<Type>> gradientInternalCoeffs() const
+            {
+                return tmp<Field<Type>>::New();
+            }
+
+            //- Return the matrix source coefficients corresponding to the
+            //- evaluation of the gradient of this patchField
+            tmp<Field<Type>> gradientBoundaryCoeffs() const
+            {
+                return tmp<Field<Type>>::New();
+            }
+
+
+    // Contiguous storage
+
+        //- Retrieve patch-normal gradient [contiguous storage].
+        //- Placeholder value is zero (treated like zero-gradient).
+        virtual void snGrad(UList<Type>& result) const
+        {
+            // Treat like zero-gradient
+            result = Foam::zero{};
+        }
+
+
+    // Member Functions
+
+        //- Write without "value" entry!
+        virtual void write(Ostream&) const;
+
+
+    // Member Operators
+
+        //- Inherit assignment (TBD: could also be ignore assignment)
+        using parent_bctype::operator=;
+};
+
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+} // End namespace Foam
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#ifdef NoRepository
+    #include "emptyFvPatchField.txx"
+#endif
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#endif
+
+// ************************************************************************* //

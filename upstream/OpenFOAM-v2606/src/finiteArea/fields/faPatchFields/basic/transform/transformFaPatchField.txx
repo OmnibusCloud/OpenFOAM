@@ -1,0 +1,157 @@
+/*---------------------------------------------------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     |
+    \\  /    A nd           | www.openfoam.com
+     \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016-2017 Wikki Ltd
+    Copyright (C) 2025 OpenCFD Ltd.
+-------------------------------------------------------------------------------
+License
+    This file is part of OpenFOAM.
+
+    OpenFOAM is free software: you can redistribute it and/or modify it
+    under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    OpenFOAM is distributed in the hope that it will be useful, but WITHOUT
+    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+    for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
+
+\*---------------------------------------------------------------------------*/
+
+#include "transformFaPatchField.H"
+#include "transformField.H"
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+template<class Type>
+Foam::transformFaPatchField<Type>::transformFaPatchField
+(
+    const faPatch& p,
+    const DimensionedField<Type, areaMesh>& iF
+)
+:
+    parent_bctype(p, iF)
+{}
+
+
+template<class Type>
+Foam::transformFaPatchField<Type>::transformFaPatchField
+(
+    const this_bctype& ptf,
+    const faPatch& p,
+    const DimensionedField<Type, areaMesh>& iF,
+    const faPatchFieldMapper& mapper
+)
+:
+    parent_bctype(ptf, p, iF, mapper)
+{}
+
+
+template<class Type>
+Foam::transformFaPatchField<Type>::transformFaPatchField
+(
+    const faPatch& p,
+    const DimensionedField<Type, areaMesh>& iF,
+    const dictionary& dict
+)
+:
+    parent_bctype(p, iF, dict, IOobjectOption::NO_READ)
+{}
+
+
+template<class Type>
+Foam::transformFaPatchField<Type>::transformFaPatchField
+(
+    const this_bctype& ptf,
+    const DimensionedField<Type, areaMesh>& iF
+)
+:
+    parent_bctype(ptf, iF)
+{}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+template<class Type>
+Foam::tmp<Foam::Field<Type>>
+Foam::transformFaPatchField<Type>::valueInternalCoeffs
+(
+    const tmp<scalarField>&
+) const
+{
+    if constexpr (!is_rotational_vectorspace_v<Type>)
+    {
+        // Rotational-invariant type
+        return tmp<Field<Type>>::New(this->size(), pTraits<Type>::one);
+    }
+    else
+    {
+        return pTraits<Type>::one - snGradTransformDiag();
+    }
+}
+
+
+template<class Type>
+Foam::tmp<Foam::Field<Type>>
+Foam::transformFaPatchField<Type>::valueBoundaryCoeffs
+(
+    const tmp<scalarField>&
+) const
+{
+    return
+        *this
+      - cmptMultiply
+        (
+            valueInternalCoeffs(this->patch().weights()),
+            this->patchInternalField()
+        );
+}
+
+
+template<class Type>
+Foam::tmp<Foam::Field<Type>>
+Foam::transformFaPatchField<Type>::gradientInternalCoeffs() const
+{
+    if constexpr (!is_rotational_vectorspace_v<Type>)
+    {
+        // Rotational-invariant type
+        return tmp<Field<Type>>::New(this->size(), Foam::zero{});
+    }
+    else
+    {
+        return -this->patch().deltaCoeffs()*snGradTransformDiag();
+    }
+}
+
+
+template<class Type>
+Foam::tmp<Foam::Field<Type>>
+Foam::transformFaPatchField<Type>::gradientBoundaryCoeffs() const
+{
+    return
+        snGrad()
+      - cmptMultiply(gradientInternalCoeffs(), this->patchInternalField());
+}
+
+
+// * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
+
+template<class Type>
+void Foam::transformFaPatchField<Type>::operator=
+(
+    const faPatchField<Type>& ptf
+)
+{
+    this->evaluate();
+}
+
+
+// ************************************************************************* //

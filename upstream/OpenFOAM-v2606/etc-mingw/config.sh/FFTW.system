@@ -1,0 +1,25 @@
+#----------------------------------*-sh-*--------------------------------------
+# =========                 |
+# \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+#  \\    /   O peration     |
+#   \\  /    A nd           | www.openfoam.com
+#    \\/     M anipulation  |
+#------------------------------------------------------------------------------
+#     Copyright (C) 2026 OpenCFD Ltd.
+#------------------------------------------------------------------------------
+# License
+#     This file is part of OpenFOAM, distributed under GPL-3.0-or-later.
+#
+# File
+#     etc/config.sh/FFTW
+#
+# Mingw
+#     Use system installation
+#
+#------------------------------------------------------------------------------
+# USER EDITABLE PART: Changes made here may be lost with the next upgrade
+
+fftw_version=fftw-system
+export FFTW_ARCH_PATH=/usr/x86_64-w64-mingw32/sys-root/mingw
+
+#------------------------------------------------------------------------------

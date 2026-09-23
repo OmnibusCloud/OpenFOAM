@@ -1,0 +1,34 @@
+#------------------------------------------------------------------------------
+# mingw cross-compilation (ARM64) - clang-based [llvm-mingw]
+#------------------------------------------------------------------------------
+include $(GENERAL_RULES)/Clang/c
+
+cc         := aarch64-w64-mingw32-clang
+cARCH      :=
+
+ifneq (,$(strip $(WM_COMPILE_OPTION)))
+    sinclude $(DEFAULT_RULES)/c$(WM_COMPILE_OPTION)
+endif
+
+cFLAGS      = \
+    $(cARCH) $(GFLAGS) $(cWARN) $(cOPT) $(cDBUG) \
+    $(FOAM_EXTRA_CFLAGS) $(LIB_HEADER_DIRS)
+
+ctoo        = $(WM_SCHEDULER) $(cc) $(cFLAGS) -c $< -o $@
+
+LINK_LIBS   = $(cDBUG)
+
+LINKLIBSO   = $(cc) $(cARCH) \
+    -Wl,--output-def=$(LIB).def \
+    -Wl,--out-implib,$(LIB).dll.a \
+    -Wl,--no-undefined \
+    -Wl,--enable-auto-import \
+    -Wl,--strip-all \
+    -shared
+
+LINKEXE     = $(cc) $(cARCH) \
+    -Wl,--enable-auto-import \
+    -Wl,--strip-all \
+    -Wl,--force-exe-suffix
+
+#------------------------------------------------------------------------------

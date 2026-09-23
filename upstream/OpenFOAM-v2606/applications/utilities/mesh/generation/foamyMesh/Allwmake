@@ -1,0 +1,30 @@
+#!/bin/sh
+cd "${0%/*}" || exit                                # Run from this directory
+export WM_CONTINUE_ON_ERROR=true                    # Optional unit
+. ${WM_PROJECT_DIR:?}/wmake/scripts/AllwmakeParseArguments # (error catching)
+. ${WM_PROJECT_DIR:?}/wmake/scripts/have_boost
+. ${WM_PROJECT_DIR:?}/wmake/scripts/have_cgal
+
+#------------------------------------------------------------------------------
+
+# Application name from DIRNAME
+appName="${PWD##*/}"
+
+# Optional
+# - CGAL not installed, or installed but gives CMake problems
+
+if have_cgal && have_boost
+then
+    wmake $targetType conformalVoronoiMesh
+    wmake $targetType conformalVoronoi2DMesh
+    wmake $targetType foamyQuadMesh
+    wmake $targetType foamyHexMesh
+    # wmake foamyHexMeshBackgroundMesh
+    # (cd foamyHexMeshSurfaceSimplify && ./Allwmake)
+    # wmake cellSizeAndAlignmentGrid
+    echo "Finish ${PWD##*/}"    # Also for a clean exit code
+else
+    echo "WARNING: cannot build ${appName} without CGAL,boost"
+fi
+
+#------------------------------------------------------------------------------

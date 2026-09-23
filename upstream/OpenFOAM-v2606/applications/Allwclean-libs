@@ -1,0 +1,47 @@
+#!/bin/sh
+cd "${0%/*}" || exit  # Run from this directory
+#------------------------------------------------------------------------------
+# Locate applications (solver, utilities) with their own local libraries
+# and wclean them. This is sometimes needed when the API definitions
+# of libOpenFOAM, libPstream etc are "baked" into the local libraries
+# but the API changes somehow do not get properly propagated.
+#
+# A wclean of the local application libraries often helps for these cases.
+#
+#------------------------------------------------------------------------------
+
+unset opt_list
+
+if ! command -v wclean 2>/dev/null
+then
+    # List only (no wclean available)
+    opt_list=true
+fi
+
+if [ -n "$opt_list" ]
+then
+    echo "Locating local application libraries" 1>&2
+else
+    echo "Locating local application libraries and cleaning them" 1>&2
+fi
+
+find . -name options -type f -print | \
+while IFS= read -r file
+do
+    file="${file#./}"
+    dir="${file%/Make/options}"  # Located under <dir>/Make/options
+
+    if [ "$dir" != "$file" ] && grep -q LIB_LIBS "$file" 2>/dev/null
+    then
+        if [ -n "$opt_list" ]
+        then
+            echo "$dir"
+        else
+            wclean -- "$dir"
+        fi
+    fi
+done
+
+echo "." 1>&2
+
+#------------------------------------------------------------------------------

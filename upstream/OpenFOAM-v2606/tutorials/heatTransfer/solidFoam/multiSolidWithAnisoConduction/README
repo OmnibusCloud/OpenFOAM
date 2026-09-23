@@ -1,0 +1,9 @@
+# Purpose of this case
+
+- This case is to demonstrate the usage of `pureZoneMixture` in
+    `thermophysicalProperties` file to solve for a conjugate heat transfer
+    without using CHT solvers, e.g., `chtMultiRegionSimpleFoam`
+- Three cellZones (zoneC inside zoneB, both zoneB and zoneC inside zoneA)
+- Anisotropic conductivity is used and is oriented about edges of the box
+- The box is tilted 45 deg. about Z-axis to NOT align with the anisotropic
+    thermal conductivity

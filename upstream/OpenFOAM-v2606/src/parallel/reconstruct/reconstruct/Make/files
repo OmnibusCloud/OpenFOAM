@@ -1,0 +1,7 @@
+processorMeshes.cxx
+fvFieldReconstructor.cxx
+pointFieldReconstructor.cxx
+passivePositionParticleCloud.cxx
+lagrangianReconstructor.cxx
+
+LIB = $(FOAM_LIBBIN)/libreconstruct

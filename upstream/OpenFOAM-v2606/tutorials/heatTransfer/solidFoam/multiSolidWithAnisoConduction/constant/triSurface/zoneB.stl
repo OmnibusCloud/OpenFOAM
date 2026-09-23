@@ -1,0 +1,86 @@
+solid solid
+ facet normal -0.707107 -0.707107 -0
+  outer loop
+   vertex 2.77556e-17 -0.282843 0.2
+   vertex -0.282843 -2.77556e-17 -0.2
+   vertex 2.77556e-17 -0.282843 -0.2
+  endloop
+ endfacet
+ facet normal -0.707107 -0.707107 0
+  outer loop
+   vertex 2.77556e-17 -0.282843 0.2
+   vertex -0.282843 -2.77556e-17 0.2
+   vertex -0.282843 -2.77556e-17 -0.2
+  endloop
+ endfacet
+ facet normal 0.707107 0.707107 0
+  outer loop
+   vertex 0.282843 2.77556e-17 0.2
+   vertex 0.282843 2.77556e-17 -0.2
+   vertex -2.77556e-17 0.282843 -0.2
+  endloop
+ endfacet
+ facet normal 0.707107 0.707107 0
+  outer loop
+   vertex 0.282843 2.77556e-17 0.2
+   vertex -2.77556e-17 0.282843 -0.2
+   vertex -2.77556e-17 0.282843 0.2
+  endloop
+ endfacet
+ facet normal 0.707107 -0.707107 0
+  outer loop
+   vertex 0.282843 2.77556e-17 0.2
+   vertex 2.77556e-17 -0.282843 -0.2
+   vertex 0.282843 2.77556e-17 -0.2
+  endloop
+ endfacet
+ facet normal 0.707107 -0.707107 0
+  outer loop
+   vertex 0.282843 2.77556e-17 0.2
+   vertex 2.77556e-17 -0.282843 0.2
+   vertex 2.77556e-17 -0.282843 -0.2
+  endloop
+ endfacet
+ facet normal -0.707107 0.707107 0
+  outer loop
+   vertex -2.77556e-17 0.282843 0.2
+   vertex -2.77556e-17 0.282843 -0.2
+   vertex -0.282843 -2.77556e-17 -0.2
+  endloop
+ endfacet
+ facet normal -0.707107 0.707107 0
+  outer loop
+   vertex -2.77556e-17 0.282843 0.2
+   vertex -0.282843 -2.77556e-17 -0.2
+   vertex -0.282843 -2.77556e-17 0.2
+  endloop
+ endfacet
+ facet normal 0 -0 -1
+  outer loop
+   vertex -2.77556e-17 0.282843 -0.2
+   vertex 2.77556e-17 -0.282843 -0.2
+   vertex -0.282843 -2.77556e-17 -0.2
+  endloop
+ endfacet
+ facet normal 0 0 -1
+  outer loop
+   vertex -2.77556e-17 0.282843 -0.2
+   vertex 0.282843 2.77556e-17 -0.2
+   vertex 2.77556e-17 -0.282843 -0.2
+  endloop
+ endfacet
+ facet normal 0 0 1
+  outer loop
+   vertex -2.77556e-17 0.282843 0.2
+   vertex -0.282843 -2.77556e-17 0.2
+   vertex 2.77556e-17 -0.282843 0.2
+  endloop
+ endfacet
+ facet normal 0 0 1
+  outer loop
+   vertex -2.77556e-17 0.282843 0.2
+   vertex 2.77556e-17 -0.282843 0.2
+   vertex 0.282843 2.77556e-17 0.2
+  endloop
+ endfacet
+endsolid solid

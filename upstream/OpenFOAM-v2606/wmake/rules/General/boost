@@ -1,0 +1,51 @@
+# ----------------------------------------------------------------------------
+# boost definitions - several possibilities
+#
+#  - missing
+#  - header-only
+#  - library (eg, _system or _thread)
+#
+# Dispatch according to the defined 'BOOST_FLAVOUR'
+# - names may change [see wmake/scripts/have_boost]
+# (no-boost | boost-header | boost-library)
+
+boost_subrule := boost-library
+ifneq (,$(findstring header,$(BOOST_FLAVOUR)))
+    boost_subrule := boost-header-only
+endif
+
+# ----------------------------------------------------------------------------
+# BOOST include/library directories - synthesize from ARCH_PATH as required
+
+ifeq (,$(strip $(BOOST_INC_DIR)))
+ifneq (,$(strip $(BOOST_ARCH_PATH)))
+  BOOST_INC_DIR = $(BOOST_ARCH_PATH)/include
+  BOOST_LIB_DIR = $(BOOST_ARCH_PATH)/lib \
+    $(BOOST_ARCH_PATH)/lib$(WM_COMPILER_LIB_ARCH)
+endif
+endif
+
+# ----------------------------------------------------------------------------
+
+BOOST_INCLUDES  =
+BOOST_LIBRARIES =
+
+include $(GENERAL_RULES)/$(boost_subrule)
+
+# Override
+sinclude $(DEFAULT_RULES)/boost
+sinclude $(DEFAULT_RULES)/$(boost_subrule)
+
+# DEBUG
+# -----
+
+## $(info BOOST_FLAVOUR $(BOOST_FLAVOUR))
+## $(info subrule $(boost_subrule))
+
+## $(info BOOST_INCLUDES: $(BOOST_INCLUDES))
+## $(info BOOST_LIBRARIES: $(BOOST_LIBRARIES))
+
+## $(info BOOST_INC_DIR: $(BOOST_INC_DIR))
+## $(info BOOST_LIB_DIR: $(BOOST_LIB_DIR))
+
+# ---------------------------------------------------------------------------

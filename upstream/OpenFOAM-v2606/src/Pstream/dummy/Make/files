@@ -1,0 +1,16 @@
+UPstream.C
+UPstreamAllToAll.C
+UPstreamBroadcast.C
+UPstreamCommunicator.C
+UPstreamGatherScatter.C
+UPstreamReduce.C
+UPstreamRequest.C
+UPstreamFile.C
+UPstreamWindow.C
+
+UIPstreamRead.C
+UOPstreamWrite.C
+UIPBstreamRead.C
+UOPBstreamWrite.C
+
+LIB = $(FOAM_LIBBIN)/dummy/libPstream

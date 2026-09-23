@@ -1,0 +1,4 @@
+incompressibleKEpsilon.C
+incompressibleKOmegaSST.C
+
+LIB = $(FOAM_LIBBIN)/libfusedTurbulenceModels

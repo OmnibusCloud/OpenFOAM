@@ -1,0 +1,228 @@
+#----------------------------------*-sh-*--------------------------------------
+# =========                 |
+# \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+#  \\    /   O peration     |
+#   \\  /    A nd           | www.openfoam.com
+#    \\/     M anipulation  |
+#------------------------------------------------------------------------------
+#     Copyright (C) 2018-2025 OpenCFD Ltd.
+#     Copyright (C) 2026 Keysight Technologies
+#------------------------------------------------------------------------------
+# License
+#     This file is part of OpenFOAM, distributed under GPL-3.0-or-later.
+#
+# Script
+#     have_adios2
+#
+# Description
+#     Detection/setup of ADIOS2
+#
+# Requires
+#     ADIOS2_ARCH_PATH
+#
+# Functions provided
+#     have_adios2, no_adios2, echo_adios2, query_adios2, search_adios2
+#     hint_adios2
+#
+# Variables set on success
+#     HAVE_ADIOS2
+#     ADIOS2_ARCH_PATH
+#     ADIOS2_INC_DIR
+#     ADIOS2_LIB_DIR
+#     ADIOS2_LIB_NAME
+#
+# System files can be hiding in a variety of locations.
+# For x86_64 system:
+#
+# Debian (sid)
+# -------------
+#     include: /usr/include
+#     library: /usr/lib/x86_64-linux-gnu/libadios2_mpi_cxx.so
+#              /usr/lib/x86_64-linux-gnu/libadios2_mpi_cxx_mpi.so
+#
+#------------------------------------------------------------------------------
+. ${WM_PROJECT_DIR:?}/wmake/scripts/sysFunctions    # General system functions
+
+#------------------------------------------------------------------------------
+
+# Reset
+no_adios2()
+{
+    unset HAVE_ADIOS2 ADIOS2_INC_DIR ADIOS2_LIB_DIR ADIOS2_LIB_NAME
+}
+
+
+# Report
+echo_adios2()
+{
+    echo "adios2=${HAVE_ADIOS2:-false}"
+    echo "root=\"$ADIOS2_ARCH_PATH\""
+    echo "include=\"$ADIOS2_INC_DIR\""
+    echo "library=\"$ADIOS2_LIB_DIR\""
+    echo "libname=\"$ADIOS2_LIB_NAME\""
+}
+
+
+# Hint for enabling
+hint_adios2()
+{
+    /bin/cat<<INFORMATION 1>&2
+==> adios2 not found?
+Define manually, enable in OpenFOAM etc/bashrc, or try the following [POSIX]:
+
+    eval \$(foamEtcFile -sh -config adios2 -- -force)
+
+==
+INFORMATION
+}
+
+
+# Search
+# $1 : prefix (*_ARCH_PATH, system, ...)
+#
+# On success, return 0 and export variables
+# -> HAVE_ADIOS2, ADIOS2_INC_DIR, ADIOS2_LIB_DIR
+search_adios2()
+{
+    local warn # warn="==> skip adios2"
+    local incName="adios2.h"
+    local libName="libadios2"
+    local prefix="${1:-system}"
+    local header library
+
+    # NOTE: libName can also be
+    # (libadios2_mpi_cxx | libadios2_cxx_mpi | libadios2_cxx11_mpi)
+
+    # The prefix can be something like <path>/adios2-system/sys-openmpi
+    # in which case 'isSystem $prefix' test would fail.
+    # - strip out the FOAM_MPI for those cases
+
+    local prefixParent
+    case "$prefix" in (*/"$FOAM_MPI") prefixParent="${prefix%/*}" ;; esac
+
+    # ----------------------------------
+    if isNone "$prefix"
+    then
+        [ -n "$warn" ] && echo "$warn (disabled)"
+        return 1
+    elif hasAbsdir "$prefix"
+    then
+        header=$(findFirstFile "$prefix/include/$incName")
+
+        # Search ext libs [delayed], except if actually a system installation
+        if [ "$prefix" != /usr ]; then library="-search-extlib"; fi
+
+    elif isSystem "$prefix" || isSystem "$prefixParent"
+    then
+        header=$(findSystemInclude -name="$incName")
+        prefix=$(sysPrefix "$header")
+    else
+        unset prefix
+    fi
+    # ----------------------------------
+
+    # Header
+    [ -n "$header" ] || {
+        [ -n "$warn" ] && echo "$warn (no header)"
+        return 2
+    }
+
+    # Search ext libs
+    if [ "$library" = "-search-extlib" ]
+    then
+        library=$(findExtLib "$libName")
+    fi
+
+    # Library searching
+    if [ -z "$library" ] && [ -d "$prefix" ]
+    then
+        local name
+        for name in \
+            "${libName}" "${libName}_mpi_cxx" \
+            "${libName}_cxx_mpi" "${libName}_cxx11_mpi" \
+        ;
+        do
+            [ -n "$name" ] || continue
+            library=$(findLibrary -prefix="$prefix" -name="$name")
+            [ -n "$library" ] && break
+        done
+    fi
+
+    [ -n "$library" ] || {  # Still nothing
+        [ -n "$warn" ] && echo "$warn (no library)"
+        return 2
+    }
+
+    # ----------------------------------
+
+    # OK
+    export HAVE_ADIOS2=true
+    export ADIOS2_ARCH_PATH="$prefix"
+    export ADIOS2_INC_DIR="${header%/*}"     # dirname
+    export ADIOS2_LIB_DIR="${library%/*}"    # dirname
+
+    library="${library##*/}"  # basename
+    library="${library%%.*}"  # w/o extension
+    library="${library#lib}"  # w/o 'lib' prefix (eg, linking)
+    export ADIOS2_LIB_NAME="$library"
+}
+
+
+# Output as per search_* function
+have_adios2()
+{
+    local warn # warn="==> skip adios2"
+    local config="config.sh/adios2"
+    local file
+
+    if file="$("$WM_PROJECT_DIR"/bin/foamEtcFile "$config")"
+    then
+        . "$file"
+    else
+        [ -n "$warn" ] && echo "$warn (no $config)"
+        return 2
+    fi
+
+    search_adios2 "$ADIOS2_ARCH_PATH"
+}
+
+
+# Query settings
+query_adios2()
+{
+    local config="config.sh/adios2"
+    local file
+
+    if file="$("$WM_PROJECT_DIR"/bin/foamEtcFile -mode=o "$config")"
+    then
+        . "$file"
+        _process_query adios2 "$ADIOS2_ARCH_PATH"
+    else
+        echo "(no $config)" 1>&2
+        echo "adios2=unknown"
+    fi
+}
+
+
+#------------------------------------------------------------------------------
+
+# Reset
+no_adios2
+
+# Test/query
+case "$1" in
+-test | -debug-test)
+    [ "$1" = "-debug-test" ] && set -x
+    have_adios2
+    [ "$1" = "-debug-test" ] && set +x
+    echo_adios2
+    ;;
+-query)
+    query_adios2
+    ;;
+-hint)
+    hint_adios2
+    ;;
+esac
+
+#------------------------------------------------------------------------------

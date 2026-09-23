@@ -1,0 +1,120 @@
+#!/bin/sh
+#------------------------------------------------------------------------------
+# =========                 |
+# \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+#  \\    /   O peration     |
+#   \\  /    A nd           | www.openfoam.com
+#    \\/     M anipulation  |
+#------------------------------------------------------------------------------
+#     Copyright (C) 2016-2025 OpenCFD Ltd.
+#------------------------------------------------------------------------------
+# License
+#     This file is part of OpenFOAM, distributed under GPL-3.0-or-later.
+#
+# Script
+#     foamGrepExeTargets
+#
+# Description
+#     Trivial script to lists all "EXE =" targets for solvers and utilities.
+#     Uses git for the grep operation.
+#
+# Examples
+#     Confirm that all available EXE targets have actually been created:
+#
+#       foamGrepExeTargets           > targets-available
+#       foamGrepExeTargets -bin      > targets-created
+#       diff -uw targets-available targets-created
+#
+#------------------------------------------------------------------------------
+# Locations
+FOAM_GIT_DIR="$WM_PROJECT_DIR/.git"
+
+printHelp() {
+    cat<<USAGE
+
+usage: ${0##*/}
+  -bin          List contents of \$FOAM_APPBIN (no git required)
+  -no-git       Disable use of git for obtaining information
+  -help         Print the usage
+
+List exe targets (contains EXE). Uses git when possible
+
+USAGE
+    exit 0  # clean exit
+}
+
+# Report error and exit
+die()
+{
+    exec 1>&2
+    echo
+    echo "Error encountered:"
+    while [ "$#" -ge 1 ]; do echo "    $1"; shift; done
+    echo
+    echo "See '${0##*/} -help' for usage"
+    echo
+    exit 1
+}
+
+#------------------------------------------------------------------------------
+
+# Parse options
+while [ "$#" -gt 0 ]
+do
+    case "$1" in
+    -h | -help* | --help*)
+        printHelp
+        ;;
+
+    -bin)
+        if [ -n "$FOAM_APPBIN" ] && cd "$FOAM_APPBIN"
+        then
+            /bin/ls -1
+            exit 0
+        else
+            die "FOAM_APPBIN is not valid"
+        fi
+        ;;
+    -no-git)
+        unset FOAM_GIT_DIR
+        ;;
+    *)
+        die "unknown option/argument: '$1'"
+        ;;
+    esac
+    shift
+done
+
+# Check environment variables
+[ -d "$WM_PROJECT_DIR" ] || \
+    die "Bad or unset environment variable: \$WM_PROJECT_DIR"
+
+cd "$WM_PROJECT_DIR" || die "No project directory: $WM_PROJECT_DIR"
+
+# Run from top-level directory - otherwise the grep is quite difficult
+# A version with 'find' is likewise possible, but not as fast.
+
+# Check 'src' too, in case somehow something is there as well.
+for dir in applications/solvers applications/utilities src
+do
+    if [ -d "$dir" ]
+    then
+        echo "Checking: $dir" 1>&2
+    else
+        echo "No directory: $dir" 1>&2
+        continue
+    fi
+
+    if [ -d "$FOAM_GIT_DIR" ]
+    then
+        git grep --cached -H -P '^\s*EXE\s*=' "$dir" 2>/dev/null
+    else
+        # Filesystem find (not quite as fast)
+        for i in $(find "$dir" -name files)
+        do
+            grep -H -P '^\s*EXE\s*=' "$i" 2>/dev/null
+        done
+    fi
+done | sed -ne 's@/Make/files:.*$@@p' | sed -e 's@.*/@@' | sort | uniq
+
+# -----------------------------------------------------------------------------

@@ -1,0 +1,42 @@
+__templateAverageCellZoneTemperature
+{
+    type                volFieldValue;
+    libs                (fieldFunctionObjects);
+    operation           volAverage;
+    fields              (T);
+    writeFields         false;
+    enabled             true;
+    log                 true;
+    evaluateControl     timeStep;
+    evaluateInterval    1;
+    writeControl        timeStep;
+    writeInterval       1;
+}
+
+tempZoneA
+{
+    ${__templateAverageCellZoneTemperature}
+
+    regionType          cellZone;
+    name                zoneA;
+}
+
+tempZoneB
+{
+    ${__templateAverageCellZoneTemperature}
+
+    regionType          cellZone;
+    name                zoneB;
+}
+
+tempZoneC
+{
+    ${__templateAverageCellZoneTemperature}
+
+    regionType          cellZone;
+    name                zoneC;
+}
+
+#remove "__.*"
+
+// ************************************************************************* //

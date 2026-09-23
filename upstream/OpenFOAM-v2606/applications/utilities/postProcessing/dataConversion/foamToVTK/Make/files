@@ -1,0 +1,3 @@
+foamToVTK.cxx
+
+EXE = $(FOAM_APPBIN)/foamToVTK

@@ -1,0 +1,30 @@
+# ----------------------------------------------------------------------------
+# HDF5 include/library directories - synthesize from ARCH_PATH as required
+
+ifeq (,$(strip $(HDF5_INC_DIR)))
+ifneq (,$(strip $(HDF5_ARCH_PATH)))
+  HDF5_INC_DIR = $(HDF5_ARCH_PATH)/include
+  HDF5_LIB_DIR = $(HDF5_ARCH_PATH)/lib \
+    $(HDF5_ARCH_PATH)/lib$(WM_COMPILER_LIB_ARCH)
+endif
+endif
+
+# ----------------------------------------------------------------------------
+
+HDF5_INC  =
+HDF5_LIBS =
+
+HDF5_INC  += \
+    $(foreach dir,$(HDF5_INC_DIR),-I$(dir))
+
+HDF5_LIBS += \
+    $(foreach dir,$(HDF5_LIB_DIR),-L$(dir)) \
+    -lhdf5
+
+# DEBUG
+# -----
+
+## $(info HDF5_INC_DIR: $(HDF5_INC_DIR))
+## $(info HDF5_LIB_DIR: $(HDF5_LIB_DIR))
+
+# ---------------------------------------------------------------------------

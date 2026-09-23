@@ -1,0 +1,23 @@
+#!/bin/sh
+cd "${0%/*}" || exit                                # Run from this directory
+
+#------------------------------------------------------------------------------
+
+if ! command -v wclean >/dev/null
+then
+    exec 1>&2
+    echo "Error (${0##*/}) : no wclean command found"
+    echo "    Check your OpenFOAM environment"
+    exit 1
+fi
+
+wclean -all Pstream
+wclean -all OSspecific/"${WM_OSTYPE:-POSIX}"
+
+wclean OpenFOAM
+
+wclean fileFormats
+wclean surfMesh
+wclean meshTools
+
+#------------------------------------------------------------------------------

@@ -1,0 +1,17 @@
+#!/bin/sh
+cd "${0%/*}" || exit                        # Run from this directory
+#------------------------------------------------------------------------------
+# Retouch files that are only conditionally compiled so that the next time
+# Allwmake will try to rebuild them
+
+for file in memory/MemoryPool.cxx fileMonitor/fileMonitor.C
+do
+    if [ -f "$file" ]
+    then
+        touch "$file"
+    fi
+done
+
+exit 0 # clean exit
+
+#------------------------------------------------------------------------------

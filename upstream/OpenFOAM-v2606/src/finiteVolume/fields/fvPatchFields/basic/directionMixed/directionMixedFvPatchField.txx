@@ -1,0 +1,244 @@
+/*---------------------------------------------------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     |
+    \\  /    A nd           | www.openfoam.com
+     \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2026 Keysight Technologies
+-------------------------------------------------------------------------------
+License
+    This file is part of OpenFOAM.
+
+    OpenFOAM is free software: you can redistribute it and/or modify it
+    under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    OpenFOAM is distributed in the hope that it will be useful, but WITHOUT
+    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+    for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
+
+\*---------------------------------------------------------------------------*/
+
+#include "directionMixedFvPatchField.H"
+#include "symmTransformField.H"
+
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+template<class Type>
+Foam::directionMixedFvPatchField<Type>::directionMixedFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+    parent_bctype(p, iF),
+    refValue_(p.size()),
+    refGrad_(p.size()),
+    valueFraction_(p.size())
+{}
+
+
+template<class Type>
+Foam::directionMixedFvPatchField<Type>::directionMixedFvPatchField
+(
+    const this_bctype& ptf,
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const fvPatchFieldMapper& mapper
+)
+:
+    parent_bctype(ptf, p, iF, mapper),
+    refValue_(ptf.refValue_, mapper),
+    refGrad_(ptf.refGrad_, mapper),
+    valueFraction_(ptf.valueFraction_, mapper)
+{
+    if (notNull(iF) && mapper.hasUnmapped())
+    {
+        WarningInFunction
+            << "On field " << iF.name() << " patch " << p.name()
+            << " patchField " << this->type()
+            << " : mapper does not map all values." << nl
+            << "    To avoid this warning fully specify the mapping in derived"
+            << " patch fields." << endl;
+    }
+}
+
+
+template<class Type>
+Foam::directionMixedFvPatchField<Type>::directionMixedFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const dictionary& dict
+)
+:
+    parent_bctype(p, iF, dict),
+    refValue_("refValue", dict, p.size()),
+    refGrad_("refGradient", dict, p.size()),
+    valueFraction_("valueFraction", dict, p.size())
+{
+    evaluate();
+}
+
+
+template<class Type>
+Foam::directionMixedFvPatchField<Type>::directionMixedFvPatchField
+(
+    const this_bctype& ptf,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+    parent_bctype(ptf, iF),
+    refValue_(ptf.refValue_),
+    refGrad_(ptf.refGrad_),
+    valueFraction_(ptf.valueFraction_)
+{}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+template<class Type>
+void Foam::directionMixedFvPatchField<Type>::autoMap
+(
+    const fvPatchFieldMapper& m
+)
+{
+    this->parent_bctype::autoMap(m);
+    refValue_.autoMap(m);
+    refGrad_.autoMap(m);
+    valueFraction_.autoMap(m);
+}
+
+
+template<class Type>
+void Foam::directionMixedFvPatchField<Type>::rmap
+(
+    const fvPatchField<Type>& ptf,
+    const labelList& addr
+)
+{
+    this->parent_bctype::rmap(ptf, addr);
+
+    const auto& dmptf = refCast<const this_bctype>(ptf);
+
+    refValue_.rmap(dmptf.refValue_, addr);
+    refGrad_.rmap(dmptf.refGrad_, addr);
+    valueFraction_.rmap(dmptf.valueFraction_, addr);
+}
+
+
+template<class Type>
+Foam::tmp<Foam::Field<Type>>
+Foam::directionMixedFvPatchField<Type>::snGrad() const
+{
+    const Field<Type> pif(this->patchInternalField());
+
+    tmp<Field<Type>> normalValue = transform(valueFraction_, refValue_);
+
+    tmp<Field<Type>> gradValue = pif + refGrad_/this->patch().deltaCoeffs();
+
+    tmp<Field<Type>> transformGradValue =
+        transform(I - valueFraction_, gradValue);
+
+    return
+        (normalValue + transformGradValue - pif)*
+        this->patch().deltaCoeffs();
+}
+
+
+template<class Type>
+void Foam::directionMixedFvPatchField<Type>::snGrad(UList<Type>& result) const
+{
+    // const Field<Type> pif(this->patchInternalField());
+    this->patchInternalField(result);
+    auto& pif = result;
+    const auto& dc = this->patch().deltaCoeffs();
+
+    const label len = result.size();
+
+    for (label i = 0; i < len; ++i)
+    {
+        const Type normalValue = transform(valueFraction_[i], refValue_[i]);
+        const Type gradValue = pif[i] + refGrad_[i]/dc[i];
+        const Type transformGradValue =
+            transform(I - valueFraction_[i], gradValue);
+        result[i] = (normalValue + transformGradValue - pif[i])*dc[i];
+    }
+}
+
+
+template<class Type>
+void Foam::directionMixedFvPatchField<Type>::evaluate(const Pstream::commsTypes)
+{
+    if (!this->updated())
+    {
+        this->updateCoeffs();
+    }
+
+    tmp<Field<Type>> normalValue = transform(valueFraction_, refValue_);
+
+    tmp<Field<Type>> gradValue =
+        this->patchInternalField() + refGrad_/this->patch().deltaCoeffs();
+
+    tmp<Field<Type>> transformGradValue =
+        transform(I - valueFraction_, gradValue);
+
+    Field<Type>::operator=(normalValue + transformGradValue);
+
+    transformFvPatchField<Type>::evaluate();
+}
+
+
+template<class Type>
+Foam::tmp<Foam::Field<Type>>
+Foam::directionMixedFvPatchField<Type>::snGradTransformDiag() const
+{
+    // static_assert(!std::is_arithmetic_v<T>, "direction-mixed with scalar??");
+    // if constexpr (!is_rotational_vectorspace_v<Type>)
+    // {
+    //     // Rotational-invariant type
+    //     return tmp<Field<Type>>::New(this->size(), Foam::zero{});
+    // }
+
+    {
+        vectorField diag(valueFraction_.size());
+
+        std::transform
+        (
+            valueFraction_.cbegin(),
+            valueFraction_.cend(),
+            diag.begin(),
+
+            [](const symmTensor& t)
+            {
+                return vector
+                (
+                    sqrt(mag(t.xx())), sqrt(mag(t.yy())), sqrt(mag(t.zz()))
+                );
+            }
+        );
+
+        return transformFieldMask<Type>(pow<vector, pTraits<Type>::rank>(diag));
+    }
+}
+
+
+template<class Type>
+void Foam::directionMixedFvPatchField<Type>::write(Ostream& os) const
+{
+    this->parent_bctype::write(os);
+    refValue_.writeEntry("refValue", os);
+    refGrad_.writeEntry("refGradient", os);
+    valueFraction_.writeEntry("valueFraction", os);
+    fvPatchField<Type>::writeValueEntry(os);
+}
+
+
+// ************************************************************************* //

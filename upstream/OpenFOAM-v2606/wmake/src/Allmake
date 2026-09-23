@@ -1,0 +1,54 @@
+#!/bin/sh
+cd "${0%/*}" || exit            # This directory (/path/project/wmake/src)
+
+if [ -z "$WM_DIR" ]             # Require WM_DIR (/path/project/wmake)
+then
+    WM_DIR="$(dirname "$(pwd -L)")"
+    export WM_DIR
+fi
+
+if [ -z "$WM_PROJECT_DIR" ]     # Expect WM_PROJECT_DIR (/path/project)
+then
+    echo "Warning (${0##*/}) : No WM_PROJECT_DIR set" 1>&2
+    WM_PROJECT_DIR="${WM_DIR%/*}"
+    export WM_PROJECT_DIR
+fi
+
+if [ -z "$WM_ARCH" ] || [ -z "$WM_COMPILER" ]
+then
+    echo "Error (${0##*/}) : No WM_ARCH or WM_COMPILER set"
+    echo "    Check your OpenFOAM environment and installation"
+    exit 1
+fi
+
+
+# Cross-compilation when using mingw and host arch is not windows
+case "$WM_ARCH/$WM_COMPILER" in
+    (linux64*/Mingw*)     crossTarget=win64 ;;
+    (linuxARM64*/Mingw*)  crossTarget=winARM64 ;;
+    (*) unset crossTarget ;;
+esac
+
+if [ -n "$crossTarget" ]
+then
+    # Cross-compilation
+    outputDir="${WM_PROJECT_DIR}/platforms/tools"
+
+    # Toolchain for build (system gcc)
+    make \
+        WM_COMPILER=Gcc WM_COMPILER_TYPE=system \
+        WMAKE_BIN="${outputDir}/${WM_ARCH}${WM_COMPILER}" \
+        "$@"
+
+    # Toolchain for target (mingw)
+    make \
+        WMAKE_BIN="${outputDir}/${crossTarget}${WM_COMPILER}" \
+        "$@"
+else
+
+    # Regular wmake toolchain
+    make "$@"
+
+fi
+
+#------------------------------------------------------------------------------

@@ -1,0 +1,28 @@
+# ----------------------------------------------------------------------------
+# Set defaults for FOAM_MODULE_APPBIN, FOAM_MODULE_LIBBIN
+# based on user locations
+#
+# FOAM_MODULE_APPBIN ?= FOAM_USER_APPBIN
+# FOAM_MODULE_LIBBIN ?= FOAM_USER_LIBBIN
+#
+# See: GENERAL_RULES/module-path-prefix
+# ----------------------------------------------------------------------------
+
+include $(GENERAL_RULES)/module-path-prefix
+
+ifeq (,$(strip $(FOAM_MODULE_APPBIN)))
+    FOAM_MODULE_APPBIN = $(FOAM_USER_APPBIN)
+endif
+
+# libdir (standard)
+ifeq (,$(strip $(FOAM_MODULE_LIBBIN)))
+    FOAM_MODULE_LIBBIN = $(FOAM_USER_LIBBIN)
+endif
+
+# libdir (mpi-specific)
+ifeq (,$(strip $(FOAM_MODULE_MPI_LIBBIN)))
+    # TBD: ifneq (dummy,$(strip $(FOAM_MPI)))
+    FOAM_MODULE_MPI_LIBBIN := $(FOAM_MODULE_LIBBIN)/$(FOAM_MPI)
+endif
+
+# ---------------------------------------------------------------------------

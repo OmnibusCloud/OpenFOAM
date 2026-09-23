@@ -1,0 +1,27 @@
+#----------------------------------*-sh-*--------------------------------------
+# =========                 |
+# \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+#  \\    /   O peration     |
+#   \\  /    A nd           | www.openfoam.com
+#    \\/     M anipulation  |
+#------------------------------------------------------------------------------
+#     Copyright (C) 2025 OpenCFD Ltd.
+#------------------------------------------------------------------------------
+# License
+#     This file is part of OpenFOAM, distributed under GPL-3.0-or-later.
+#
+# File
+#     etc/config.sh/readline
+#     [optional/experimental: not sourced by OpenFOAM-*/etc/bashrc]
+#
+# Description
+#     Example setup for READLINE locations
+#
+#     The leading '#config#' marker provides an edit point for
+#     foamConfigurePaths
+#------------------------------------------------------------------------------
+# USER EDITABLE PART: Changes made here may be lost with the next upgrade
+
+#config# export READLINE_ARCH_PATH=...
+
+#------------------------------------------------------------------------------

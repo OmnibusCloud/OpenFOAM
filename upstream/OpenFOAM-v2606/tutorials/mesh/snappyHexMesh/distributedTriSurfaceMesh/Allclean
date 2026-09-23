@@ -1,0 +1,17 @@
+#!/bin/sh
+cd "${0%/*}" || exit                                # Run from this directory
+. ${WM_PROJECT_DIR:?}/bin/tools/CleanFunctions      # Tutorial clean functions
+#------------------------------------------------------------------------------
+
+cleanCase0
+
+rm -rf constant
+
+# Reset the snappyHexMeshDict
+if [ -f system/snappyHexMeshDict.orig ]
+then
+    echo "$0: restoring the snappyHexMeshDict from snappyHexMeshDict.orig"
+    cp system/snappyHexMeshDict.orig system/snappyHexMeshDict
+fi
+
+#------------------------------------------------------------------------------

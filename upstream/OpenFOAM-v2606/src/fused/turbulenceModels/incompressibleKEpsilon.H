@@ -1,0 +1,236 @@
+/*---------------------------------------------------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     |
+    \\  /    A nd           | www.openfoam.com
+     \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
+-------------------------------------------------------------------------------
+License
+    This file is part of OpenFOAM.
+
+    OpenFOAM is free software: you can redistribute it and/or modify it
+    under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    OpenFOAM is distributed in the hope that it will be useful, but WITHOUT
+    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+    for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
+
+Class
+    Foam::incompressible::RASModels::incompressibleKEpsilon
+
+Group
+    grpIcoRASTurbulence
+
+Description
+    Standard k-epsilon turbulence model for incompressible and compressible
+    flows including rapid distortion theory (RDT) based compression term.
+
+    Reference:
+    \verbatim
+        Standard model:
+            Launder, B. E., & Spalding, D. B. (1972).
+            Lectures in mathematical models of turbulence.
+
+            Launder, B. E., & Spalding, D. B. (1974).
+            The numerical computation of turbulent flows.
+            Computer methods in applied mechanics and engineering,
+            3(2), 269-289.
+
+        For the RDT-based compression term:
+            El Tahry, S. H. (1983).
+            k-epsilon equation for compressible reciprocating engine flows.
+            Journal of Energy, 7(4), 345-353.
+
+        Two-layer wall treatment to allow operation on low-Re grids:
+            Jongen, T. and Marx, Y.P. (1997) “Design of an Unconditionally
+            Stable, Positive Scheme for the k−epsilon and Two-Layer Turbulence
+            Models”, Computers & Fluids, 26(5), 469-487.
+    \endverbatim
+
+    The default model coefficients are
+    \verbatim
+        kEpsilonCoeffs
+        {
+            Cmu                 0.09;
+            C1                  1.44;
+            C2                  1.92;
+            C3                  -0.33;
+            sigmak              1.0;
+            sigmaEps            1.3;
+            twoLayerTreatment   false;
+
+            // If two twoLayerTreatment = true,
+
+            // Critical turbulence Reynolds number marking the separation
+            // of inner-layer and outer-layer. Can be adjusted from 50.0
+            // (low-speed flows) to 200.0 (default value).
+            ReyStar          200.0;
+
+            // Smoothness of transition from inner-layer to outer-layer.
+            // Typically from 0.05 (sharp transition) to 0.2 (smooth transition).
+            // For unstable cases, prefer larger values.
+            ReyFactor        0.05;
+        }
+    \endverbatim
+
+SourceFiles
+    incompressibleKEpsilon.C
+
+\*---------------------------------------------------------------------------*/
+
+#ifndef incompressibleKEpsilon_H
+#define incompressibleKEpsilon_H
+
+#include "turbulentTransportModel.H"
+#include "eddyViscosity.H"
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+namespace Foam
+{
+namespace incompressible
+{
+namespace RASModels
+{
+
+/*---------------------------------------------------------------------------*\
+                  Class incompressibleKEpsilon Declaration
+\*---------------------------------------------------------------------------*/
+
+class incompressibleKEpsilon
+:
+    public eddyViscosity<incompressible::RASModel>
+{
+    // Private Member Functions
+
+        //- No copy construct
+        incompressibleKEpsilon(const incompressibleKEpsilon&) = delete;
+
+        //- No copy assignment
+        void operator=(const incompressibleKEpsilon&) = delete;
+
+
+protected:
+
+    // Protected data
+
+        // Model coefficients
+
+            dimensionedScalar Cmu_;
+            dimensionedScalar C1_;
+            dimensionedScalar C2_;
+            dimensionedScalar C3_;
+            dimensionedScalar sigmak_;
+            dimensionedScalar sigmaEps_;
+
+
+        // Fields
+
+            volScalarField k_;
+            volScalarField epsilon_;
+
+
+        // Two-layer wall treatment
+
+            bool twoLayerTreatment_;
+            dimensionedScalar ReyStar_;
+            dimensionedScalar ReyFactor_;
+            std::unique_ptr<volScalarField::Internal> lEpsPtr_;
+            std::unique_ptr<volScalarField> lambdaEpsPtr_;
+
+
+    // Protected Member Functions
+
+        virtual void correctNut();
+        virtual tmp<fvScalarMatrix> kSource() const;
+        virtual tmp<fvScalarMatrix> epsilonSource() const;
+
+
+public:
+
+    //- Runtime type information
+    TypeName("incompressibleKEpsilon");
+
+
+    // Constructors
+
+        //- Construct from components
+        incompressibleKEpsilon
+        (
+            const geometricOneField& alpha,
+            const geometricOneField& rho,
+            const volVectorField& U,
+            const surfaceScalarField& alphaRhoPhi,
+            const surfaceScalarField& phi,
+            const transportModel& transport,
+            const word& propertiesName = turbulenceModel::propertiesName,
+            const word& type = typeName
+        );
+
+
+    //- Destructor
+    virtual ~incompressibleKEpsilon() = default;
+
+
+    // Member Functions
+
+        //- Re-read model coefficients if they have changed
+        virtual bool read();
+
+        //- Return the effective diffusivity for k
+        tmp<volScalarField> DkEff() const
+        {
+            return tmp<volScalarField>::New
+            (
+                "DkEff",
+                (this->nut_/sigmak_ + this->nu())
+            );
+        }
+
+        //- Return the effective diffusivity for epsilon
+        tmp<volScalarField> DepsilonEff() const
+        {
+            return tmp<volScalarField>::New
+            (
+                "DepsilonEff",
+                (this->nut_/sigmaEps_ + this->nu())
+            );
+        }
+
+        //- Return the turbulence kinetic energy
+        virtual tmp<volScalarField> k() const
+        {
+            return k_;
+        }
+
+        //- Return the turbulence kinetic energy dissipation rate
+        virtual tmp<volScalarField> epsilon() const
+        {
+            return epsilon_;
+        }
+
+        //- Solve the turbulence equations and correct the turbulence viscosity
+        virtual void correct();
+};
+
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+} // End namespace RASModels
+} // End namespace incompressible
+} // End namespace Foam
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#endif
+
+// ************************************************************************* //

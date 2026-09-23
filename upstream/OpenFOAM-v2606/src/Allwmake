@@ -1,0 +1,186 @@
+#!/bin/sh
+# Run from OPENFOAM src/ directory only
+cd "${0%/*}" || exit
+wmake -check-dir "$WM_PROJECT_DIR/src" 2>/dev/null || {
+    echo "Error (${0##*/}) : not located in \$WM_PROJECT_DIR/src"
+    echo "    Check your OpenFOAM environment and installation"
+    exit 1
+}
+if [ -f "$WM_PROJECT_DIR"/wmake/scripts/AllwmakeParseArguments ]
+then  . "$WM_PROJECT_DIR"/wmake/scripts/AllwmakeParseArguments || \
+    echo "Argument parse error"
+else
+    echo "Error (${0##*/}) : WM_PROJECT_DIR appears to be incorrect"
+    echo "    Check your OpenFOAM environment and installation"
+    exit 1
+fi
+
+echo ========================================
+echo Compile OpenFOAM libraries
+echo ========================================
+
+#------------------------------------------------------------------------------
+# Base libraries
+
+wmakeLnInclude -u OpenFOAM
+wmakeLnInclude -u OSspecific/"${WM_OSTYPE:-POSIX}"
+
+# Update version info (as required)
+OpenFOAM/Alltouch -check 2>/dev/null
+
+OSspecific/"${WM_OSTYPE:-POSIX}"/Allwmake $targetType $*
+
+case "$WM_ARCH/$WM_COMPILER" in
+(*ARM64/Mingw*)
+    # Handle Pstream/OpenFOAM cyclic dependency
+    # - compile Pstream as single .o object
+    # - compile OpenFOAM and link against libPstream.o
+    Pstream/Allwmake libo  #<- dummy and mpi
+    FOAM_LINK_DUMMY_PSTREAM=libo wmake $targetType OpenFOAM
+
+    # Extra handling to ensure that export symbols are not pruned
+    special_def_file="${FOAM_LIBBIN:?}/dummy/libPstream.o.def"
+    if [ -f "$special_def_file" ]
+    then
+        # Relink [dummy] libPstream as dll with full export
+        FOAM_EXTRA_CXXFLAGS="$FOAM_EXTRA_CXXFLAGS -Wl,$special_def_file" \
+        WM_MPLIB=dummy Pstream/Allwmake $targetType $*
+    fi
+
+    # Extra handling to ensure that export symbols are not pruned (mpi-lib)
+    unset special_def_file
+    if [ -d "$FOAM_MPI_LIBBIN" ]
+    then
+        special_def_file="${FOAM_MPI_LIBBIN}/libPstream.o.def"
+    elif [ "${FOAM_MPI:-dummy}" != dummy ]
+    then
+        special_def_file="$FOAM_LIBBIN/$FOAM_MPI/libPstream.o.def"
+    fi
+
+    if [ -f "$special_def_file" ]
+    then
+        # Relink [mpi] libPstream as dll with full export
+        FOAM_EXTRA_CXXFLAGS="$FOAM_EXTRA_CXXFLAGS -Wl,$special_def_file" \
+        Pstream/Allwmake-mpi $targetType $*
+    fi
+
+    # Force relink of libOpenFOAM against libPstream.{dll,so}
+    OpenFOAM/Alltouch 2>/dev/null
+    ;;
+(*/Mingw*)
+    # Handle Pstream/OpenFOAM cyclic dependency
+    # - compile Pstream as single .o object
+    # - compile OpenFOAM and link against libPstream.o
+    WM_MPLIB=dummy Pstream/Allwmake libo
+    FOAM_LINK_DUMMY_PSTREAM=libo wmake $targetType OpenFOAM
+
+    # Force relink of libOpenFOAM against libPstream.{dll,so}
+    OpenFOAM/Alltouch 2>/dev/null
+    ;;
+esac
+
+Pstream/Allwmake $targetType $*
+wmake $targetType OpenFOAM
+
+# Frequently needed, even for minimal programs
+wmake $targetType fileFormats
+wmake $targetType surfMesh
+wmake $targetType meshTools
+
+# ========================================
+# Done OpenFOAM base libraries
+# ========================================
+
+#------------------------------------------------------------------------------
+
+wmake $targetType finiteArea
+wmake $targetType finiteVolume
+wmake $targetType fused/finiteVolume
+
+wmake $targetType mesh/blockMesh
+wmake $targetType mesh/extrudeModel  # Requires: blockMesh
+wmake $targetType dynamicMesh  # Requires: extrudeModel
+wmake $targetType genericPatchFields
+
+wmake $targetType parallel/decompose/decompositionMethods
+
+# Make dummy decomposition methods (dummyThirdParty)
+parallel/decompose/AllwmakeLnInclude
+dummyThirdParty/Allwmake $targetType $*
+
+wmakeLnInclude -u fvOptions
+
+wmake $targetType lagrangian/basic
+wmake $targetType lagrangian/distributionModels
+
+renumber/Allwmake $targetType $*
+parallel/Allwmake $targetType $*
+
+wmake $targetType dynamicFvMesh
+wmake $targetType topoChangerFvMesh
+
+wmake $targetType sampling
+transportModels/Allwmake $targetType $*
+randomProcesses/Allwmake $targetType $*
+
+wmake $targetType ODE
+
+
+thermophysicalModels/Allwmake $targetType $*
+TurbulenceModels/Allwmake $targetType $*
+wmake $targetType fused/turbulenceModels
+wmake $targetType combustionModels
+
+wmakeLnInclude -u regionFaModels
+wmakeLnInclude -u faOptions
+
+wmakeLnInclude -u overset
+wmake $targetType overset
+
+wmake $targetType fvOptions
+
+wmake $targetType fvMotionSolver
+
+# snappyHexMesh uses overset voxelMesh
+mesh/Allwmake $targetType $*
+fvAgglomerationMethods/Allwmake $targetType $*
+wmake $targetType waveModels
+
+wmake $targetType engine
+
+conversion/Allwmake $targetType $*
+
+phaseSystemModels/Allwmake $targetType $*
+functionObjects/Allwmake $targetType $*
+
+wmake $targetType thermoTools
+
+regionModels/Allwmake $targetType $*
+
+wmake $targetType faOptions
+wmake $targetType regionFaModels
+
+lagrangian/Allwmake $targetType $*
+wmake $targetType functionObjects/lagrangian
+
+
+wmake $targetType lumpedPointMotion
+wmake $targetType sixDoFRigidBodyMotion
+wmake $targetType sixDoFRigidBodyState
+wmake $targetType rigidBodyDynamics
+wmake $targetType rigidBodyMeshMotion
+wmake $targetType atmosphericModels
+wmake $targetType optimisation/adjointOptimisation/adjoint
+
+
+# interfaceTracking libs
+dynamicFaMesh/Allwmake $targetType $*
+
+
+#------------------------------------------------------------------------------
+
+echo ========================================
+echo Done OpenFOAM libraries
+echo ========================================
+
+#------------------------------------------------------------------------------

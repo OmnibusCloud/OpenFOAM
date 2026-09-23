@@ -1,0 +1,214 @@
+/*---------------------------------------------------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     |
+    \\  /    A nd           | www.openfoam.com
+     \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2019-2026 OpenCFD Ltd.
+-------------------------------------------------------------------------------
+License
+    This file is part of OpenFOAM, distributed under GPL-3.0-or-later.
+
+Description
+    Code chunk for converting volume fields on processor boundaries,
+    included by foamToVTK.
+
+\*---------------------------------------------------------------------------*/
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// Generate processor/processorN/procBoundary
+
+{
+    using reportFields = foamToVtkReportFields;
+
+    const label nVolFields = objects.count(Foam::fieldTypes::is_volume);
+
+    reportFields::volume(Info, objects);
+
+    // Setup for the vtm writer.
+
+    fileName vtmOutputBase
+    (
+        outputDir/regionDir/outputBaseName + timeDesc
+    );
+
+    // Naming
+    const auto subDirNaming =
+        [](const label i) -> fileName
+        { return "processor" / ("processor" + Foam::name(i)); };
+
+
+    // Dummy writer.
+    autoPtr<vtk::internalWriter> internalWriter;
+
+    // Setup the patch writers
+    PtrList<vtk::patchWriter> patchWriters;
+
+    const polyBoundaryMesh& patches = mesh.boundaryMesh();
+
+    labelList patchIds =
+        identity
+        (
+            patches.size()-patches.nNonProcessor(),
+            patches.nNonProcessor()
+        );
+
+    forAll(patchIds, i)
+    {
+        if (!isA<processorPolyPatch>(patches[patchIds[i]]))
+        {
+            patchIds.resize(i);
+            break;
+        }
+    }
+
+    patchWriters.resize(patchIds.size());
+
+    label nPatchWriters = 0;
+
+    List<wordList> procPatchNames(UPstream::nProcs());
+    procPatchNames[UPstream::myProcNo()].resize(patchIds.size());
+
+    labelList selectedPatchId(1);
+
+    for (const label patchId : patchIds)
+    {
+        const polyPatch& pp = patches[patchId];
+        selectedPatchId[0] = pp.index();
+
+        auto writer = autoPtr<vtk::patchWriter>::New
+        (
+            meshProxy.mesh(),
+            selectedPatchId,
+            writeOpts,
+            (
+                vtmOutputBase
+              / subDirNaming(UPstream::myProcNo())
+              / pp.name()
+            ),
+            false  // This MUST be non-parallel (serial only)
+        );
+
+        if (nearCellValue)
+        {
+            writer->useCellValue(nearCellValue);
+        }
+
+        procPatchNames[UPstream::myProcNo()][nPatchWriters] = pp.name();
+
+        writer->writeTimeValue(timeValue);
+        writer->writeGeometry();
+
+        // Transfer writer to list for later use
+        patchWriters.set(nPatchWriters++, writer);
+    }
+    patchWriters.resize(nPatchWriters);
+
+
+    Pstream::gatherList(procPatchNames);
+
+    // CellData
+    {
+        for (auto& writer : patchWriters)
+        {
+            // Optionally with patchID, procID, neighID fields
+            // - use UPstream::parRun() not writer.parallel() !!
+            writer.beginCellData
+            (
+                (withMeshIds ? 1 + (UPstream::parRun() ? 2 : 0) : 0)
+              + nVolFields
+            );
+
+            if (withMeshIds)
+            {
+                writer.writePatchIDs();
+                writer.writeProcIDs();  // parallel only
+                writer.writeNeighIDs(); // parallel only
+            }
+        }
+
+        writeAllVolFields
+        (
+            internalWriter,
+            patchWriters,
+            meshProxy,
+            objects,
+            true,   // syncPar
+            nullptr // no field cache (object registry)
+        );
+
+        // End CellData is implicit
+    }
+
+
+    // Finish writers
+    if (internalWriter)
+    {
+        internalWriter->close();
+    }
+
+    for (auto& writer : patchWriters)
+    {
+        writer.close();
+    }
+
+    patchWriters.clear();
+
+
+    // Collective output
+
+    const label nProcPatches = returnReduce(nPatchWriters, sumOp<label>());
+
+    if (UPstream::master() && nProcPatches)
+    {
+        Info<< "Wrote " << nProcPatches << " processor boundaries from "
+            << UPstream::nProcs() << " processes" << nl;
+
+
+        // Collect individual boundaries into a vtm file
+        vtk::vtmWriter vtmBoundaries;
+
+        // Naming for vtm
+        fileName outputName(vtmOutputBase / "processor");
+        outputName.ext(vtmBoundaries.ext());
+
+        vtmBoundaries.setTime(timeValue);
+
+        forAll(procPatchNames, proci)
+        {
+            label n = 0;
+
+            const word blockName("proc" + Foam::name(proci));
+            const fileName dirName = subDirNaming(proci);
+
+            for (const word& patchName : procPatchNames[proci])
+            {
+                if (!n)
+                {
+                    vtmBoundaries.beginBlock(blockName);
+                    ++n;
+                }
+
+                vtmBoundaries.append_poly
+                (
+                    patchName,
+                    dirName/patchName
+                );
+            }
+
+            if (n)
+            {
+                vtmBoundaries.endBlock();
+            }
+        }
+
+
+        // Emit "processor.vtm" with collection of processor boundaries
+        vtmBoundaries.write(outputName);
+    }
+}
+
+
+// ************************************************************************* //

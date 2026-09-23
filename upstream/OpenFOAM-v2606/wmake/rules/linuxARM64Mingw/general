@@ -1,0 +1,20 @@
+# Need -D_WIN32 -D__MINGW32__ if host cpp is used
+#CPP     = /lib/cpp -traditional-cpp -D_WIN32 -D__MINGW32__ $(GFLAGS)
+
+CPP     = cpp -Ulinux -Uunix -nostdinc -P $(GFLAGS)
+LD      = aarch64-w64-mingw32-clang
+AR      = aarch64-w64-mingw32-ar
+RANLIB  = aarch64-w64-mingw32-ranlib
+
+PROJECT_LIBS = -l$(WM_PROJECT) \
+    -L$(FOAM_LIBBIN)/dummy -lPstream
+
+include $(GENERAL_RULES)/standard
+
+include $(DEFAULT_RULES)/c
+include $(DEFAULT_RULES)/c++
+
+EXT_SO  = .dll
+EXT_EXE = .exe
+
+# -----------------------------------------------------------------------------

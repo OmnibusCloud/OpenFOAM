@@ -1,0 +1,125 @@
+#!/bin/sh
+#------------------------------------------------------------------------------
+# =========                 |
+# \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+#  \\    /   O peration     |
+#   \\  /    A nd           | www.openfoam.com
+#    \\/     M anipulation  |
+#------------------------------------------------------------------------------
+#     Copyright (C) 2025 OpenCFD Ltd.
+#------------------------------------------------------------------------------
+# License
+#     This file is part of OpenFOAM, distributed under GPL-3.0-or-later.
+#
+# Script
+#     foamGrepLibTargets
+#
+# Description
+#     List library targets (contain "LIB_LIBS =")
+#
+#------------------------------------------------------------------------------
+# Locations
+FOAM_GIT_DIR="$WM_PROJECT_DIR/.git"
+
+printHelp() {
+    cat<<USAGE
+
+usage: ${0##*/}
+  -no-git       Disable use of git for obtaining information
+  -app          Search applications/solvers/ applications/utilities/
+  -src          Search src/
+  -no-git       Disable use of git for obtaining information
+  -help         Print the usage
+
+List library targets (contains LIB_LIBS). Uses git when possible
+
+USAGE
+    exit 0  # clean exit
+}
+
+# Report error and exit
+die()
+{
+    exec 1>&2
+    echo
+    echo "Error encountered:"
+    while [ "$#" -ge 1 ]; do echo "    $1"; shift; done
+    echo
+    echo "See '${0##*/} -help' for usage"
+    echo
+    exit 1
+}
+
+#------------------------------------------------------------------------------
+unset locations
+
+# Parse options
+while [ "$#" -gt 0 ]
+do
+    case "$1" in
+    -h | -help* | --help*)
+        printHelp
+        ;;
+
+    -app)
+        locations="$locations applications/solvers applications/utilities"
+        ;;
+
+    -src)
+        locations="$locations src"
+        ;;
+
+    -no-git)
+        unset FOAM_GIT_DIR
+        ;;
+    *)
+        die "unknown option/argument: '$1'"
+        ;;
+    esac
+    shift
+done
+
+# Check environment variables
+[ -d "$WM_PROJECT_DIR" ] || \
+    die "Bad or unset environment variable: \$WM_PROJECT_DIR"
+
+# Fallback to all locations
+if [ -z "$locations" ]
+then
+    locations="applications/solvers applications/utilities src"
+fi
+
+set -- $locations
+
+if [ "$#" -eq 0 ]
+then
+   die "No search locations"
+fi
+
+# Run from top-level directory - otherwise the grep is quite difficult
+
+cd "$WM_PROJECT_DIR" || die "No project directory: $WM_PROJECT_DIR"
+
+for dir in "$@"
+do
+    if [ -d "$dir" ]
+    then
+        echo "Checking: $dir" 1>&2
+    else
+        echo "No directory: $dir" 1>&2
+        continue
+    fi
+
+    if [ -d "$FOAM_GIT_DIR" ]
+    then
+        git grep --cached -H -P '^\s*LIB_LIBS\s*=' "$dir" 2>/dev/null
+    else
+        # Filesystem find (not quite as fast)
+        for i in $(find "$dir" -name options)
+        do
+            grep -H -P '^\s*LIB_LIBS\s*=' "$i" 2>/dev/null
+        done
+    fi
+done | sed -ne 's@/Make/options:.*$@@p' | sort | uniq
+
+# -----------------------------------------------------------------------------

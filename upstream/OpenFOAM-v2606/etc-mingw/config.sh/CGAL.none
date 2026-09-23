@@ -1,0 +1,28 @@
+#----------------------------------*-sh-*--------------------------------------
+# =========                 |
+# \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+#  \\    /   O peration     |
+#   \\  /    A nd           | www.openfoam.com
+#    \\/     M anipulation  |
+#------------------------------------------------------------------------------
+#     Copyright (C) 2026 OpenCFD Ltd.
+#------------------------------------------------------------------------------
+# License
+#     This file is part of OpenFOAM, distributed under GPL-3.0-or-later.
+#
+# File
+#     etc/config.sh/CGAL
+#
+# Mingw
+#     Disabled
+#
+#------------------------------------------------------------------------------
+# USER EDITABLE PART: Changes made here may be lost with the next upgrade
+
+boost_version=boost-none
+cgal_version=CGAL-none
+
+export BOOST_ARCH_PATH="/$boost_version"
+export CGAL_ARCH_PATH="/$cgal_version"
+
+#------------------------------------------------------------------------------

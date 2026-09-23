@@ -1,0 +1,24 @@
+# -----------------------------------------------------------------------------
+# boost (library version)
+
+ifneq (,$(strip $(BOOST_LIB_DIR)))
+BOOST_LIB_NAME ?= boost_system
+endif
+
+BOOST_INCLUDES   =
+BOOST_LIBRARIES  =
+
+BOOST_INCLUDES   = \
+    $(foreach dir,$(BOOST_INC_DIR),-I$(dir))
+
+ifneq (none,$(strip $(BOOST_LIB_NAME)))
+ifneq (,$(strip $(BOOST_LIB_NAME)))
+
+BOOST_LIBRARIES  = \
+    $(foreach dir,$(BOOST_LIB_DIR),-L$(dir)) \
+    -l$(BOOST_LIB_NAME)
+
+endif
+endif
+
+#------------------------------------------------------------------------------

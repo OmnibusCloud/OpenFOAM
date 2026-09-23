@@ -1,0 +1,134 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2606                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      thermophysicalProperties;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+thermoType
+{
+    type            heSolidThermo;
+    mixture         pureZoneMixture;
+    transport       constAnIso;
+    thermo          hConst;
+    equationOfState rhoConst;
+    specie          specie;
+    energy          sensibleEnthalpy;
+}
+
+coordinateSystem
+{
+    type    cartesian;
+    origin  (0 0 0);
+
+    rotation
+    {
+        type    axes;
+        e1      (1 1 0);
+        e2      (-1 1 0);
+    }
+}
+
+mixture
+{
+    none
+    {
+        specie
+        {
+            molWeight   55.5;
+        }
+        thermodynamics
+        {
+            Hf          0;
+            Sf          0;
+            Cp          490.0;
+        }
+        transport
+        {
+            kappa       (4 1 0.5);
+        }
+        equationOfState
+        {
+            rho         7950.0;
+        }
+    }
+
+    zoneA
+    {
+        specie
+        {
+            molWeight   55.5;
+        }
+        thermodynamics
+        {
+            Hf          0;
+            Sf          0;
+            Cp          490.0;
+        }
+        transport
+        {
+            kappa       (4 1 0.5);
+        }
+        equationOfState
+        {
+            rho         7950.0;
+        }
+    }
+
+    zoneB
+    {
+        specie
+        {
+            molWeight   55.5;
+        }
+        thermodynamics
+        {
+            Hf          0;
+            Sf          0;
+            Cp          490.0;
+        }
+        transport
+        {
+            kappa       (16 4 1);
+        }
+        equationOfState
+        {
+            rho         7950.0;
+        }
+    }
+
+    zoneC
+    {
+        specie
+        {
+            molWeight   26.98;
+        }
+        thermodynamics
+        {
+            Hf          0;
+            Sf          0;
+            Cp          896.0;
+        }
+        transport
+        {
+            kappa       (160 40 10);
+        }
+        equationOfState
+        {
+            rho         2700.0;
+        }
+    }
+}
+
+// ************************************************************************* //

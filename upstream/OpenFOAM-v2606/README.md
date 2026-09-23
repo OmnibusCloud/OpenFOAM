@@ -1,0 +1,274 @@
+<table align="center"><tr><td align="center" width="9999">
+
+<a href="https://www.openfoam.com/">
+    <img src="https://www.openfoam.com/themes/bs4esi/img/openfoam-logo.png?v20210416" alt="OpenFOAM logo" title="OpenFOAM" align="center" height="60" />
+</a>
+
+<h4 align="center">Welcome to the Official OpenFOAM&reg; Repository!</a></h4>
+
+<h4 align="center">The Industry-Leading Open-Source Fluid Simulation Software</a></h4>
+
+<p align="center">
+  <a href="#installation">Installation</a> •
+  <a href="#how-to-use">How To Use</a> •
+  <a href="#license">License</a> •
+  <a href="#trademark">Trademark</a> •
+  <a href="#useful-links">Useful Links</a>
+</p>
+</td></tr></table>
+
+[OpenFOAM&reg;](https://www.openfoam.com/) is the industry-leading,
+free, (forever) open-source, general-purpose computational fluid dynamics (CFD) software,
+[developed, maintained and released by Keysight Technologies](http://www.openfoam.com/history/).
+
+OpenFOAM&reg; has [an extensive range of features](http://www.openfoam.com/documentation) to solve anything from complex fluid flows involving chemical reactions, turbulence and heat transfer, to acoustics, solid mechanics and electromagnetics. For this reason, OpenFOAM&reg; developed a large user base across most areas of engineering and science, from both commercial and academic organisations.
+
+OpenFOAM&reg; is professionally released every six months to include
+customer sponsored developments and contributions from the community -
+individual and group contributors, integrations, e.g. from extend-project and
+OpenFOAM Foundation Ltd., as well as
+[OpenFOAM&reg; Governance guided activities](https://www.openfoam.com/governance/).
+
+## Installation
+
+You can build OpenFOAM&reg; in different ways for Windows, macOS, Linux and Unix-like operating systems. Please follow the links below that suits your needs:
+
+<details open>
+  <summary><strong>Pre-compiled operating-system packages</strong></summary>
+
+- **Best for**: Users who want a stable, easy-to-update installation. This is generally the most straightforward way to get a functional environment on these systems.
+- **Method**: This involves downloading and installing the pre-compiled operating-system packages using the native package manager of the operating system.
+- **Instructions**:
+  - [Debian/Ubuntu](https://gitlab.com/openfoam/core/openfoam/-/wikis/precompiled/debian)
+  - [openSUSE](https://gitlab.com/openfoam/core/openfoam/-/wikis/precompiled/suse)
+  - [Rocky/Fedora/CentOS/RedHat](https://gitlab.com/openfoam/core/openfoam/-/wikis/precompiled/redhat)
+  - Windows
+    - [Windows Subsystem for Linux (WSL/WSL2)](https://gitlab.com/openfoam/core/openfoam/-/wikis/precompiled/windows#windows-subsystem-for-linux)<sup>[What is WSL?](https://learn.microsoft.com/en-us/windows/wsl/about)</sup>
+    - [Native Windows executables with cross-compilation](https://gitlab.com/openfoam/core/openfoam/-/wikis/precompiled/windows#native-windows)
+</details>
+
+<details>
+  <summary><strong>Containers (Docker/Singularity)</strong></summary>
+
+- **Best for**: Those who need a self-contained or specific version of OpenFOAM&reg; without modifying their host system.
+- **Method**: This involves using pre-assembled Docker<sup>[What is Docker?](https://docs.docker.com/get-started/)</sup> images for Windows/macOS/Linux or Apptainer<sup>[What is Apptainer?](https://apptainer.org/docs/user/latest/introduction.html)</sup> images to run OpenFOAM&reg; within a virtualized, isolated container.
+- **Instructions**:
+  - [Docker](https://gitlab.com/openfoam/core/openfoam/-/wikis/precompiled/docker)
+  - [Apptainer](https://gitlab.com/openfoam/core/openfoam/-/wikis/precompiled/apptainer)
+
+</details>
+
+<details>
+  <summary><strong>Source-code compilation</strong></summary>
+
+- **Best for**: Advanced users/developers that requires the latest features, experimental branches, or custom builds with specific optimizations or libraries.
+- **Method**: Download the source code and compile it yourself. This is typically done on Linux or within a WSL environment, and it requires all necessary dependencies to be manually installed.
+- **Instructions**:
+  - [Guide for building from the source](https://gitlab.com/openfoam/core/openfoam/-/wikis/building)
+  - See the following table for the specifics:
+
+| Location    | README    | Requirements | Build |
+|-------------|-----------|--------------|-------|
+| [OpenFOAM&reg;][repo openfoam] | [README][link openfoam-readme] | [System requirements][link openfoam-require] | [Build][link openfoam-build] |
+| [ThirdParty][repo third] | [README][link third-readme] | [System requirements][link third-require] | [Build][link third-build] |
+
+
+If you need to modify the versions or locations of ThirdParty
+software, please read how the
+[OpenFOAM&reg; configuration][wiki-config] is structured.
+</details>
+
+### How do I know which version I am currently using?
+
+The value of the `$WM_PROJECT_DIR` or even `$WM_PROJECT_VERSION` are
+not guaranteed to have any correspondence to the OpenFOAM&reg; release
+(API) value. If OpenFOAM&reg; has already been compiled, the build-time
+information is embedded into each application. For example, as
+displayed from `blockMesh -help`:
+```
+Using: OpenFOAM-com (2012) - visit www.openfoam.com
+Build: b830beb5ea-20210429 (patch=210414)
+Arch:  LSB;label=32;scalar=64
+```
+This output contains all of the more interesting information that we need:
+
+| item                  | value         |
+|-----------------------|---------------|
+| version               | com  (eg, local development branch) |
+| api                   | 2012          |
+| commit                | b830beb5ea    |
+| author date           | 20210429      |
+| patch-level           | (20)210414    |
+| label/scalar size     | 32/64 bits    |
+
+The Arch information may also include the `solveScalar` size
+if different than the `scalar` size.
+
+As can be seen in this example, the git build information is
+supplemented by the date when the last change was authored, which can
+be helpful when the repository contains local changes. If you simply
+wish to know the current API and patch levels directly, the
+`wmake -build-info` provides the relevant information even
+when OpenFOAM&reg; has not yet been compiled:
+```
+$ wmake -build-info
+make
+    api = 2012
+    patch = 210414
+    branch = master
+    build = 308af39136-20210426
+```
+Similar information is available with `foamEtcFile`, using the
+`-show-api` or `-show-patch` options. For example,
+```
+$ foamEtcFile -show-api
+2012
+
+$ foamEtcFile -show-patch
+210414
+```
+This output will generally be the easiest to parse for scripts.
+The `$FOAM_API` convenience environment variable may not reflect the
+patching changes made within the currently active environment and
+should be used with caution.
+
+### ThirdParty directory
+
+OpenFOAM&reg; normally ships with a directory of 3rd-party software and
+build scripts for some 3rd-party software that is either necessary or
+at least highly useful for OpenFOAM&reg;, but which are not necessarily
+readily available on every operating system or cluster installation.
+
+These 3rd-party sources are normally located in a directory parallel
+to the OpenFOAM&reg; directory. For example,
+```
+/path/parent
+|-- OpenFOAM-v2606
+\-- ThirdParty-v2606
+```
+There are, however, many cases where this simple convention is inadequate:
+
+* When no additional 3rd party software is actually required (ie, the
+  operating system or cluster installation provides it)
+
+* When we have changed the OpenFOAM&reg; directory name to some arbitrary
+  directory name, e.g. openfoam-sandbox2412, etc..
+
+* When we would like any additional 3rd party software to be located
+  inside of the OpenFOAM&reg; directory to ensure that the installation is
+  encapsulated within a single directory structure. This can be
+  necessary for cluster installations, or may simply be a convenient
+  means of performing a software rollout for individual workstations.
+
+* When we have many different OpenFOAM&reg; directories for testing or
+  developing various different features but wish to use or reuse the
+  same 3rd party software for them all.
+
+The solution for these problems is a newer, more intelligent discovery
+when locating the ThirdParty directory with the following precedence:
+
+1. PROJECT/ThirdParty
+   * for single-directory installations
+2. PREFIX/ThirdParty-VERSION
+   * this corresponds to the traditional approach
+3. PREFIX/ThirdParty-vAPI
+   * allows for an updated value of VERSION, *eg*, `v2606-myCustom`,
+     without requiring a renamed ThirdParty. The API value would still
+     be `2606` and the original `ThirdParty-v2606/` would be found.
+4. PREFIX/ThirdParty-API
+   * same as the previous example, but using an unadorned API value.
+5. PREFIX/ThirdParty-common
+   * permits maximum reuse for various versions, for experienced
+     users who are aware of potential version incompatibilities
+
+If none of these directories are found to be suitable, it reverts to
+using PROJECT/ThirdParty as a dummy location (even if the directory
+does not exist). This is a safe fallback value since it is within the
+OpenFOAM&reg; directory structure and can be trusted to have no negative
+side-effects. In the above, the following notation has been used:
+
+| name          | value         | meaning       |
+|---------------|---------------|---------------|
+| PROJECT       | `$WM_PROJECT_DIR`     | The OpenFOAM&reg; directory |
+| PREFIX        | `dirname $WM_PROJECT_DIR` | The OpenFOAM&reg; parent directory |
+| API           | `foamEtcFiles -show-api` |  The api or release version |
+| VERSION       | `$WM_PROJECT_VERSION` | The version we have chosen |
+
+To reduce the potential of false positive matches (perhaps some other
+software also uses ThirdParty-xxx for its naming), the directory test
+is accompanied by a OpenFOAM&reg;-specific sanity test. The OpenFOAM&reg;
+ThirdParty directory will contain either an `Allwmake` file or a
+`platforms/` directory.
+
+## How to use
+
+You can start using OpenFOAM&reg; by launching a terminal<sup>[What is Linux terminal?](https://ubuntu.com/tutorials/command-line-for-beginners#1-overview),[What is Windows terminal?](https://learn.microsoft.com/en-us/windows/terminal/)</sup> window and loading the OpenFOAM&reg; environment in the terminal.
+
+In its simplest form, simply source the appropriate `etc/bashrc` or `etc/cshrc` file to load the environment and start using OpenFOAM&reg; tools such as `blockMesh`:
+
+```bash
+source <absolute path of the installation>/OpenFOAM-v2606/etc/bashrc
+
+cd $FOAM_TUTORIALS/incompressible/simpleFoam/pitzDaily
+
+blockMesh
+```
+
+For more usage details see the [quickstart guide](https://doc.openfoam.com/2312/quickstart/).
+
+## License
+
+OpenFOAM&reg; is free and open-source software: you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the
+Free Software Foundation, either version 3 of the License, or (at your
+option) any later version.  See the file [LICENSE.md](./LICENSE.md) in this directory or
+[http://www.gnu.org/licenses/](http://www.gnu.org/licenses), for a
+description of the GNU General Public License terms under which you
+may redistribute files.
+
+## Trademark
+
+OpenCFD Ltd grants use of its OpenFOAM&reg; trademark by Third Parties on a
+licence basis. Keysight Technologies Ltd and OpenFOAM Foundation Ltd are currently
+permitted to use the Name and agreed Domain Name. For information on
+trademark use, please refer to the
+[trademark policy guidelines][link trademark].
+
+Please [contact Keysight Technologies](http://www.openfoam.com/contact) if you have
+any questions about the use of the OpenFOAM&reg; trademark.
+
+Violations of the Trademark are monitored, and will be duly prosecuted.
+
+<!-- OpenFOAM -->
+
+[link trademark]: https://www.openfoam.com/opencfd-limited-trade-mark-policy
+
+[repo openfoam]: https://gitlab.com/openfoam/core/openfoam/
+[repo third]: https://gitlab.com/openfoam/core/thirdparty-common/
+
+[link openfoam-readme]: https://gitlab.com/openfoam/core/openfoam/blob/develop/README.md
+[link openfoam-issues]: https://gitlab.com/openfoam/core/openfoam/blob/develop/doc/BuildIssues.md
+[link openfoam-build]: https://gitlab.com/openfoam/core/openfoam/blob/develop/doc/Build.md
+[link openfoam-require]: https://gitlab.com/openfoam/core/openfoam/blob/develop/doc/Requirements.md
+[link third-readme]: https://gitlab.com/openfoam/core/thirdparty-common/blob/develop/README.md
+[link third-build]: https://gitlab.com/openfoam/core/thirdparty-common/blob/develop/BUILD.md
+[link third-require]: https://gitlab.com/openfoam/core/thirdparty-common/blob/develop/Requirements.md
+
+[wiki-config]: https://gitlab.com/openfoam/core/openfoam/-/wikis/configuring
+
+## Useful links
+
+- [Source-code packs](https://dl.openfoam.com/source/)
+- [Documentation](http://www.openfoam.com/documentation)
+- [Reporting bugs/issues/feature requests](http://www.openfoam.com/code/bug-reporting.php)
+- [Issue tracker](https://gitlab.com/openfoam/core/openfoam/-/issues)
+- [Code wiki](https://gitlab.com/openfoam/core/openfoam/-/wikis/)
+- [General wiki](http://wiki.openfoam.com/)
+- [C++ source code guide](https://api.openfoam.com/2506/)
+- [Governance](http://www.openfoam.com/governance/), [Governance Projects](https://www.openfoam.com/governance/projects)
+- [Contact Keysight Technologies](http://www.openfoam.com/contact/)
+
+Copyright 2016-2025 OpenCFD Ltd
+Copyright 2026 Keysight Technologies
+
+<!----------------------------------------------------------------------------->

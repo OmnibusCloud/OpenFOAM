@@ -1,0 +1,514 @@
+#!/bin/bash
+#------------------------------------------------------------------------------
+# =========                 |
+# \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+#  \\    /   O peration     |
+#   \\  /    A nd           | www.openfoam.com
+#    \\/     M anipulation  |
+#------------------------------------------------------------------------------
+#     Copyright (C) 2011-2015 OpenFOAM Foundation
+#     Copyright (C) 2017-2025 OpenCFD Ltd.
+#------------------------------------------------------------------------------
+# License
+#     This file is part of OpenFOAM, distributed under GPL-3.0-or-later.
+#
+# Script
+#     mpirunDebug
+#
+# Description
+#     Invoke mpirun with separate per-processor log files etc.
+#     Requires bash on all processors.
+#
+#------------------------------------------------------------------------------
+. "${WM_PROJECT_DIR:?}"/bin/tools/RunFunctions  # Run functions
+
+printHelp() {
+    cat<<USAGE
+
+Usage: ${0##*/} [OPTION] -np <N> <executable> <args>
+
+options:
+  -method=MODE  The run mode
+        (0)  normal
+        (1)  gdb+xterm
+        (2)  gdb
+        (3)  log
+        (4)  log + xterm
+        (5)  valgrind + xterm
+       (5l)  valgrind + log
+        (6)  gperftools(callgrind)
+  -spawn=TYPE   Spawn type: (1) local (2) remote
+  -yes          Start without additional prompting
+  -local        Same as -spawn=1
+  -remote       Same as -spawn=2
+  -clean        Remove log and startup files
+  -no-core      Restrict core dump to 0 size
+  -quick        Valgrind with 'summary' (not 'full') and use -no-core
+  -decompose-dict=<file>   Specific decomposeParDict name
+  -help         Print the usage
+
+Invoke mpirun with separate per-processor log files or with separate XTerms.
+Also detects some OpenFOAM options:
+  -decomposeParDict <file>   Use specified file for decomposePar dictionary
+
+Common shortcuts. Sets default spawn to -local, add -yes.
+  -normal       = -method=0
+  -log          = -method=3
+  -xlog         = -method=4  (log + xterm)
+  -valgrind     = -method=5l (valgrind + log)
+  -xvalgrind    = -method=5  (valgrind + xterm)
+
+USAGE
+    exit 0  # A clean exit
+}
+
+# Report error and exit
+die()
+{
+    exec 1>&2
+    echo
+    echo "Error encountered:"
+    while [ "$#" -ge 1 ]; do echo "    $1"; shift; done
+    echo
+    echo "See '${0##*/} -help' for usage"
+    echo
+    exit 1
+}
+
+#-------------------------------------------------------------------------------
+
+# Method naming/numbering correspondence
+methodPrompt="0)normal  1)gdb+xterm  2)gdb  3)log  4)log+xterm  5)valgrind+xterm 5l)valgrind+log  6)gperftools(callgrind)"
+
+methodNumberToName()
+{
+    case "$1" in
+    0 | norm* )  echo "normal" ;;
+    1)  echo "gdb-xterm" ;;
+    2)  echo "gdb" ;;
+    3 | log )  echo "log" ;;
+    4 | xterm )  echo "log-xterm" ;;
+    5)  echo "valgrind-xterm" ;;
+    5l | valgr*) echo "valgrind" ;;
+    6)  echo "gperf" ;;
+    *)  return 1 ;;
+    esac
+}
+
+
+#-------------------------------------------------------------------------------
+# Basic settings
+
+unset appName appArgs nProcs
+unset method spawn optClean optValue opt_nocore
+optConfirm=true
+opt_leakcheck=full
+
+decompDict="system/decomposeParDict"
+
+# Parse options
+while [ "$#" -gt 0 ]
+do
+    # echo "$1" 1>&2
+
+    # Our own options (before the application is specified)
+    if [ -z "$appName" ]
+    then
+        knownOption=true  # Assume success
+        case "$1" in
+        ('') ;;  # Ignore junk
+
+        -clean)     optClean=true ;;
+        -yes)       unset optConfirm ;;
+
+        -local | -remote)
+            spawn="${1#-}"
+            ;;
+
+        -spawn=1) spawn="local" ;;
+        -spawn=2) spawn="remote" ;;
+
+        -method=[0-9]*)
+            knownOption="${1#*=}" # Reuse for input
+            method="$(methodNumberToName "$knownOption")" || \
+               die "Unknown run method \"$knownOption\""
+            ;;
+
+        -normal | -log)
+            method="${1#*-}"
+            unset optConfirm
+            : "${spawn:=local}"
+            ;;
+
+        -xlog | -xterm)
+            method="log-xterm"
+            unset optConfirm
+            : "${spawn:=local}"
+            ;;
+
+        -quick)
+            opt_leakcheck="summary"
+            opt_nocore=true
+            ;;
+
+        -no-core)
+            opt_nocore=true
+            ;;
+
+        -valgr*)
+            method="valgrind"
+            unset optConfirm
+            : "${spawn:=local}"
+            ;;
+
+        -xvalgr*)
+            method="valgrind-xterm"
+            unset optConfirm
+            : "${spawn:=local}"
+            ;;
+
+        -np)
+            nProcs="$2"
+            shift
+            ;;
+
+        (-decompose-dict=*)
+            optValue="${1#*=}"
+            case "$optValue" in
+            ('' | none | false) ;;  ## Ignore
+            (*)
+                decompDict="$optValue"
+                appArgs="${appArgs}${appArgs:+ }-decomposeParDict '$decompDict'"
+                ;;
+            esac
+            ;;
+
+        -decomposeParDict)
+            # Grab values and add to args immediately
+            decompDict="$2"
+            shift
+            appArgs="${appArgs}${appArgs:+ }-decomposeParDict '$decompDict'"
+            ;;
+
+        (*)
+            knownOption=false  # Fallthrough to regular processing
+            ;;
+        esac
+
+        if [ "$knownOption" = true ]
+        then
+            shift
+            continue
+        fi
+    fi
+
+    # Processing application arguments
+    case "$1" in
+    (-help* | --help*) printHelp ;;
+    ('') ;;  ## Ignore junk
+
+    (-np)
+        nProcs="$2"
+        shift
+        ;;
+
+    (-decomposeParDict)
+        # Grab values and add to args immediately
+        decompDict="$2"
+        appArgs="${appArgs}${appArgs:+ }-decomposeParDict '$decompDict'"
+        shift
+        ;;
+
+    (*)
+        if [ -z "$appName" ]
+        then
+            appName="$1"
+        else
+            appArgs="${appArgs}${appArgs:+ }'$1'"
+        fi
+        ;;
+    esac
+    shift
+done
+
+#-------------------------------------------------------------------------------
+
+# Cleanup only
+if [ -n "$optClean" ]
+then
+    exec 1>&2
+    echo "Cleanup old mpirunDebug files..."
+    rm -f gdbCommands mpirun.schema vgcore.*
+    rm -f processor*.log processor*.sh
+    rm -rf mpirun.files mpirun.log
+    echo "    gdbCommands mpirun.schema vgcore.*"
+    echo "    processor*.{log,sh}"
+    echo "    mpirun.{files,log}/"
+    echo "Done"
+    exit 0  # A clean exit
+fi
+
+
+#-------------------------------------------------------------------------------
+
+# No -np specified?
+# Try guess from system/decomposeParDict or command-line -decomposeParDict
+if [ -z "$nProcs" ] && [ -f "$decompDict" ]
+then
+    nProcs=$(getNumberOfProcessors "$decompDict") || unset nProcs
+fi
+
+
+cat << REPORT_SETTINGS 1>&2
+Run parameters:
+    procs : ${nProcs:-[]}
+    exec  : ${appName:-[]}
+    args  : ${appArgs:-[]}
+REPORT_SETTINGS
+
+[ -n "$nProcs" ] || die "Number of processors not specified or not detected"
+[ -n "$appName" ] || die "No application specified"
+[ -n "$appArgs" ] || die "No application arguments"
+
+
+exec=$(command -v $appName)
+[ -x "$exec" ] || die "Command not found or not executable: $appName"
+[ -n "$PWD" ] || PWD="$(pwd)"
+
+# Choose method
+if [ -z "$method" ]
+then
+    echo "Choose running method: ${methodPrompt}"
+    echo -e "[normal] > \c"
+    read input
+    : "${input:=0}"  # Default (0) normal
+
+    method="$(methodNumberToName "$input")" || \
+        die "Unknown run method \"$input\""
+fi
+
+# Choose spawn
+if [ -z "$spawn" ]
+then
+    echo "Run all processes local or distributed? 1)local  2)remote"
+    echo -e "[local] > \c"
+    read input
+    : "${input:=1}"  # Default (1) local
+
+    case "$input" in
+    (1) spawn="local" ;;
+    (2) spawn="remote" ;;
+    (*) die "Unknown spawn type \"$input\""
+    esac
+fi
+
+# Methods with gdb:
+case "$method" in
+(*gdb*)
+    echo "run $appArgs" > "$PWD"/gdbCommands
+    echo "where" >> "$PWD"/gdbCommands
+    echo "Constructed gdb initialization file $PWD/gdbCommands" 1>&2
+    ;;
+esac
+
+
+sourceFoam=false    # Fallback command
+
+# Same as foamEtcFile -mode=uo bashrc
+#
+# check ~/.$WM_PROJECT/$FOAM_API/
+# check ~/.$WM_PROJECT/
+# check projectDir/etc/
+if [ -n "$WM_PROJECT_DIR" ]
+then
+    for i in \
+        "$HOME/.$WM_PROJECT/$FOAM_API" \
+        "$HOME/.$WM_PROJECT" \
+        "$WM_PROJECT_DIR/etc" \
+        ;
+    do
+        if [ -f "$i/bashrc" ]
+        then
+            sourceFoam="$i/bashrc"
+            break
+        fi
+    done
+fi
+
+# Source OpenFOAM settings if OpenFOAM environment not set.
+# use FOAM_SETTINGS to pass command-line settings
+
+case "$sourceFoam" in
+*/bashrc)
+    sourceFoam=". $sourceFoam $FOAM_SETTINGS || true"
+    ;;
+esac
+
+echo "**sourceFoam: $sourceFoam" 1>&2
+
+# remove old files
+rm -rf ./mpirun.files
+rm -rf ./mpirun.log
+
+mkdir -p ./mpirun.files
+mkdir -p ./mpirun.log
+
+schema_file="$PWD/mpirun.files/mpirun.schema"
+
+rm -f "$schema_file"
+touch "$schema_file"
+
+
+proc=0
+xpos=0
+ypos=0
+for ((proc=0; proc<$nProcs; proc++))
+do
+    procCmdFile="$PWD/mpirun.files/processor${proc}.sh"
+    procLog="./mpirun.log/processor${proc}.log"
+    xterm="xterm -font fixed -title processor${proc} -geometry 120x15+$xpos+$ypos"
+
+    unset node
+    case "$WM_MPLIB" in
+    *OPENMPI*)
+        node="-np 1 "
+        ;;
+    esac
+
+cat << COMMANDS > "$procCmdFile"
+#!/bin/bash
+$sourceFoam
+cd "${PWD}" || exit
+COMMANDS
+
+    if [ "$opt_nocore" = true ]
+    then
+        echo "# no coredump" >> "$procCmdFile"
+        echo "ulimit -c 0 2>/dev/null" >> "$procCmdFile"
+    fi
+
+    # Add to the mpirun.schema
+    case "$method" in
+    (*xterm*) echo "${node}${xterm} -e ${procCmdFile}" >> "$schema_file" ;;
+    (*)       echo "${node}${procCmdFile}" >> "$schema_file" ;;
+    esac
+
+    case "$method" in
+    (normal)
+        echo "$exec $appArgs | tee $procLog"
+        ;;
+    (log)
+        echo "$exec $appArgs > $procLog 2>&1"
+        ;;
+    (log-xterm)
+        echo "$exec $appArgs 2>&1 | tee $procLog"
+        echo "read input"
+        ;;
+    (gdb)
+        echo "gdb -command $PWD/gdbCommands $exec > $procLog 2>&1"
+        ;;
+    (gdb-xterm)
+        echo "gdb -command $PWD/gdbCommands $exec 2>&1 | tee $procLog"
+        echo "read input"
+        ;;
+    (valgrind | valgrind-log)
+        echo "# valgrind does not work nicely with RMA (libfabric)"
+        echo "export FI_PROVIDER=tcp"
+        echo
+        echo "valgrind --leak-check=$opt_leakcheck --show-reachable=yes $exec $appArgs > $procLog 2>&1"
+        ;;
+    (valgrind-xterm)
+        echo "# valgrind does not work nicely with RMA (libfabric)"
+        echo "export FI_PROVIDER=tcp"
+        echo
+        echo "valgrind --leak-check=$opt_leakcheck --show-reachable=yes $exec $appArgs 2>&1 | tee $procLog"
+        echo "read input"
+        ;;
+    (gperf)
+        echo "CPUPROFILE=log.profiler_$proc $exec $appArgs"
+        echo "pprof --callgrind $exec log.profiler_$proc > log.profiler_$proc.callgrind"
+        ;;
+    esac >> "$procCmdFile"
+
+    chmod +x "$procCmdFile"
+
+    let column=proc%6
+    if [ $proc -ne 0 -a $column -eq 0 ]
+    then
+        ((xpos+=600))
+        ((ypos=0))
+    else
+        ((ypos+=200))
+    fi
+done
+
+
+if [ "$nProcs" -lt 10 ]
+then
+    for ((proc = 0; proc < $nProcs; proc++))
+    do
+        procLog="mpirun.log/processor${proc}.log"
+        echo "    tail -f $procLog" 1>&2
+    done
+else
+    for ((proc = 0; proc < 4; proc++))
+    do
+        procLog="mpirun.log/processor${proc}.log"
+        echo "    tail -f $procLog" 1>&2
+    done
+    echo "    ..." 1>&2
+    for ((proc = $nProcs-2; proc < $nProcs; proc++))
+    do
+        procLog="mpirun.log/processor${proc}.log"
+        echo "    tail -f $procLog" 1>&2
+    done
+fi
+
+unset cmd
+
+case "$WM_MPLIB" in
+*OPENMPI*)
+    cmd="mpirun --oversubscribe -app "$schema_file""
+    ;;
+MPICH)
+    cmd="mpiexec"
+    for ((proc=0; proc<$nProcs; proc++))
+    do
+        read procCmd
+
+        procXtermCmdFile="$PWD/mpirun.files/xterm-processor${proc}.sh"
+        echo "#!/bin/sh" > "$procXtermCmdFile"
+        echo "$procCmd" >> "$procXtermCmdFile"
+        chmod +x "$procXtermCmdFile"
+        if [ "$proc" -ne 0 ]
+        then
+            cmd="${cmd} :"
+        fi
+        cmd="${cmd} -n 1 ${procXtermCmdFile}"
+    done < "$schema_file"
+    ;;
+*)
+    die "Unsupported WM_MPLIB setting : $WM_MPLIB"
+    ;;
+esac
+
+echo 1>&2
+echo "Constructed $schema_file file:" 1>&2
+echo 1>&2
+echo "    $cmd" 1>&2
+echo 1>&2
+
+if [ -n "$optConfirm" ]
+then
+    # Pause before running
+    echo -e "Press return to execute, or ^C to abort...\c"
+    read input
+    echo 1>&2
+fi
+echo "starting: $(date '+%Y-%m-%d %H:%M:%S %z' 2>/dev/null)" 1>&2
+echo 1>&2
+
+exec </dev/null
+exec $cmd
+
+#------------------------------------------------------------------------------

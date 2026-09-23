@@ -1,0 +1,302 @@
+#---------------------------------*- sh -*-------------------------------------
+# =========                 |
+# \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+#  \\    /   O peration     |
+#   \\  /    A nd           | www.openfoam.com
+#    \\/     M anipulation  |
+#------------------------------------------------------------------------------
+#     Copyright (C) 2011-2016 OpenFOAM Foundation
+#     Copyright (C) 2015-2025 OpenCFD Ltd.
+#------------------------------------------------------------------------------
+# License
+#     This file is part of OpenFOAM, distributed under GPL-3.0-or-later.
+#
+# Script
+#     CleanFunctions
+#
+# Description
+#     Miscellaneous cleanup functions for tutorial cases
+#
+#------------------------------------------------------------------------------
+
+cleanTimeDirectories()
+{
+    echo "Cleaning case $PWD"
+    zeros=""
+    while [ ${#zeros} -lt 8 ]
+    do
+        rm -rf ./"0.$zeros"[1-9]* ./"-0.$zeros"[1-9]*
+        zeros="0$zeros"
+    done
+    rm -rf ./[1-9]* ./-[1-9]*
+}
+
+
+# Various files (logs, paraview, some mpirunDebug, etc)
+# Note: leave mpirun.log/ files untouched, since they may still be useful
+# for later diagnosis
+cleanAuxiliary()
+{
+    rm -rf \
+        ./mpirun.files \
+        ./log ./log.* ./log-* ./logSummary.* \
+        ./.fxLock ./*.xml ./ParaView* ./paraFoam* \
+        ./*.blockMesh ./*.foam ./*.OpenFOAM \
+        ./.setSet
+}
+
+
+cleanAdiosOutput()
+{
+    if [ -d adiosData ] && [ -d system ]
+    then
+        rm -rf adiosData
+    fi
+}
+
+
+cleanDynamicCode()
+{
+    if [ -d dynamicCode ] && [ -d system ]
+    then
+        rm -rf dynamicCode
+    fi
+}
+
+
+cleanSnappyFiles()
+{
+    rm -f \
+        constant/polyMesh/cellLevel \
+        constant/polyMesh/pointLevel \
+        constant/polyMesh/refinementHistory \
+        constant/polyMesh/level0Edge \
+        constant/polyMesh/surfaceIndex
+    rm -f \
+        processor*/constant/polyMesh/cellLevel \
+        processor*/constant/polyMesh/pointLevel \
+        processor*/constant/polyMesh/refinementHistory \
+        processor*/constant/polyMesh/level0Edge \
+        processor*/constant/polyMesh/surfaceIndex
+    rm -f \
+        constant/cellLevel \
+        constant/pointLevel \
+        0/cellLevel \
+        0/pointLevel
+    rm -f \
+        processor*/constant/cellLevel \
+        processor*/constant/pointLevel \
+        processor*/0/cellLevel \
+        processor*/0/pointLevel
+}
+
+
+cleanOptimisation()
+{
+    rm -rf optimisation
+    rm -rf constant/controlPoints
+}
+
+
+cleanPostProcessing()
+{
+    rm -rf Ensight EnSight ensightWrite insitu VTK
+    rm -rf postProcessing
+    rm -rf postProcessing-*
+    rm -rf cuttingPlane
+    rm -rf surfaceSampling
+}
+
+
+# ---------------
+# Remove constant/finite-area/faMesh or constant/finite-area/{region}/faMesh
+#
+# Accepts following options:
+#   -region <name>      The region name
+#   --                  End of options
+# ---------------
+cleanFaMesh()
+{
+    local region
+
+    # Parse options
+    while [ "$#" -gt 0 ]
+    do
+        case "$1" in
+        ('')  ;;                # Ignore empty option
+        (--)  shift; break ;;   # Stop option parsing
+
+        (-region=*) region="${1#*=}" ;;
+        (-region)   region="$2"; shift ;;
+        (*) break ;;
+        esac
+        shift
+    done
+
+    # safety
+    if [ "$region" = "--" ]; then unset region; fi
+
+    local meshDir="constant/finite-area/${region}${region:+/}faMesh"
+
+    if [ -e "$meshDir" ]
+    then
+        [ -n "$region" ] && echo "Clearing $meshDir" 1>&2
+        rm -rf -- "$meshDir"
+    fi
+
+    # Legacy location <constant/faMesh>
+    # - may still have remnant <constant/faMesh/faMeshDefinition>
+
+    meshDir="constant/faMesh"
+    if [ -e "$meshDir" ] && [ -z "$region" ]
+    then
+        if [ -e "$meshDir"/faMeshDefinition ]
+        then
+            # VERY OLD LOCATION
+            echo
+            echo "WARNING: not removing $meshDir/"
+            echo "    It contains a 'faMeshDefinition' file"
+            echo "    Please relocate file(s) to system/finite-area/ !!"
+            echo
+        else
+            # Can remove constant/faMesh/ entirely (no faMeshDefinition)
+            echo "Clearing $meshDir" 1>&2
+            rm -rf -- "$meshDir"
+        fi
+    fi
+}
+
+
+# ---------------
+# Remove constant/polyMesh or constant/<region>/polyMesh
+#
+# Accepts following options:
+#   -region <name>      The region name
+#   --                  End of options
+# ---------------
+cleanPolyMesh()
+{
+    local region
+
+    # Parse options
+    while [ "$#" -gt 0 ]
+    do
+        case "$1" in
+        ('')  ;;                # Ignore empty option
+        (--)  shift; break ;;   # Stop option parsing
+
+        (-region=*) region="${1#*=}" ;;
+        (-region)   region="$2"; shift ;;
+        (*) break ;;
+        esac
+        shift
+    done
+
+    # safety
+    if [ "$region" = "--" ]; then unset region; fi
+
+    local meshDir="constant/${region}${region:+/}polyMesh"
+
+    if [ -e "$meshDir" ]
+    then
+        [ -n "$region" ] && echo "Clearing $meshDir" 1>&2
+
+        if [ -e "$meshDir"/blockMeshDict ] \
+        || [ -e "$meshDir"/blockMeshDict.m4 ]
+        then
+            # VERY OLD LOCATION
+            echo
+            echo "WARNING: not removing $meshDir/"
+            echo "    It contains a 'blockMeshDict' or 'blockMeshDict.m4' file"
+            echo "    Please relocate file(s) to system/ !!"
+            echo
+        else
+            # Can remove constant/polyMesh/ entirely (no blockMeshDict)
+            rm -rf -- "$meshDir"
+        fi
+    fi
+
+    meshDir="system${region:+/}${region}"
+    if [ -e "$meshDir"/blockMeshDict.m4 ]
+    then
+        rm -f -- "$meshDir"/blockMeshDict
+    fi
+}
+
+
+cleanCase()
+{
+    cleanTimeDirectories
+    cleanAdiosOutput
+    cleanAuxiliary
+    cleanDynamicCode
+    cleanOptimisation
+    cleanPostProcessing
+
+    cleanFaMesh
+    cleanPolyMesh
+    cleanSnappyFiles
+
+    rm -rf processor*
+    rm -rf TDAC
+    rm -rf probes*
+    rm -rf forces*
+    rm -rf graphs*
+    rm -rf sets
+    rm -rf system/machines
+
+    # Debug output (blockMesh, decomposePar)
+    rm -f \
+        blockTopology.vtu blockFaces.vtp blockTopology.obj blockCentres.obj \
+        cellDist.vtu decomposePar.vtu renumberMesh.vtu \
+        0/cellDist
+
+    # From mpirunDebug
+    rm -f gdbCommands mpirun.schema
+
+    (
+        cd constant 2>/dev/null || exit 0
+
+        rm -rf \
+          cellDecomposition cellToRegion cellLevel* pointLevel* \
+          tetDualMesh \
+          ;
+    )
+}
+
+
+# Frequently used - cleanCase and rm -rf 0/
+cleanCase0()
+{
+    cleanCase
+    rm -rf 0
+}
+
+
+removeCase()
+{
+    echo "Removing case ${1:-unknown}"
+    [ "$#" -ge 1 ] && rm -rf -- "$1"
+}
+
+
+cleanSamples()
+{
+    rm -rf sets samples sampleSurfaces
+}
+
+
+cleanUcomponents()
+{
+    rm -rf 0/Ux 0/Uy 0/Uz
+}
+
+
+cleanApplication()
+{
+    echo "Cleaning application $PWD"
+    wclean
+}
+
+
+#------------------------------------------------------------------------------

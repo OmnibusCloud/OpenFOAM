@@ -1,0 +1,184 @@
+#----------------------------------*-sh-*--------------------------------------
+# =========                 |
+# \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+#  \\    /   O peration     |
+#   \\  /    A nd           | www.openfoam.com
+#    \\/     M anipulation  |
+#------------------------------------------------------------------------------
+#     Copyright (C) 2018-2025 OpenCFD Ltd.
+#     Copyright (C) 2026 Keysight Technologies
+#------------------------------------------------------------------------------
+# License
+#     This file is part of OpenFOAM, distributed under GPL-3.0-or-later.
+#
+# Script
+#     have_boost
+#
+# Description
+#     Detection/setup of BOOST
+#
+# Requires
+#     BOOST_ARCH_PATH
+# or  config.sh/CGAL (when BOOST_ARCH_PATH is empty)
+#
+# Functions provided
+#     have_boost, no_boost, echo_boost, query_boost, search_boost
+#
+# Variables set on success
+#     HAVE_BOOST
+#     BOOST_FLAVOUR (header, library, ...)
+#     BOOST_ARCH_PATH
+#     BOOST_INC_DIR
+#     BOOST_LIB_DIR
+#     BOOST_LIB_NAME
+#
+#------------------------------------------------------------------------------
+. ${WM_PROJECT_DIR:?}/wmake/scripts/sysFunctions    # General system functions
+
+#------------------------------------------------------------------------------
+
+# Reset
+no_boost()
+{
+    unset HAVE_BOOST CGAL_FLAVOUR BOOST_INC_DIR BOOST_LIB_DIR BOOST_LIB_NAME
+}
+
+
+# Report
+echo_boost()
+{
+    echo "boost=${HAVE_BOOST:-false}"
+    echo "flavour=$BOOST_FLAVOUR"
+    echo "root=\"$BOOST_ARCH_PATH\""
+    echo "include=\"$BOOST_INC_DIR\""
+    echo "library=\"$BOOST_LIB_DIR\""
+    echo "libname=\"$BOOST_LIB_NAME\""
+}
+
+
+# Search
+# $1 : prefix (*_ARCH_PATH, system, ...)
+#
+# On success, return 0 and export variables
+# -> HAVE_BOOST, BOOST_FLAVOUR, BOOST_INC_DIR, BOOST_LIB_DIR, BOOST_LIB_NAME
+search_boost()
+{
+    local warn # warn="==> skip boost"
+    local incName="boost/version.hpp"
+    local libName="libboost_system"
+    local libName2="libboost_thread"
+
+    local prefix="${1:-system}"
+    local header library flavour
+
+    # ----------------------------------
+    if isNone "$prefix"
+    then
+        [ -n "$warn" ] && echo "$warn (disabled)"
+        return 1
+    elif hasAbsdir "$prefix"
+    then
+        header=$(findFirstFile "$prefix/include/$incName")
+        library=$(findExtLib "$libName" "$libName2")
+    elif isSystem "$prefix"
+    then
+        header=$(findSystemInclude -name="$incName")
+        prefix=$(sysPrefix "$header")
+    else
+        unset prefix
+    fi
+    # ----------------------------------
+
+    # Header
+    [ -n "$header" ] || {
+        [ -n "$warn" ] && echo "$warn (no header)"
+        return 2
+    }
+
+    # Library may be optional - eg, header-only
+    [ -n "$library" ] \
+    || library=$(findLibrary -prefix="$prefix" -name="$libName") \
+    || library=$(findLibrary -prefix="$prefix" -name="$libName2") \
+    || {
+        [ -n "$warn" ] && echo "$warn (no library)"
+        unset library
+        flavour="header"    # Header only
+    }
+
+    # ----------------------------------
+
+    header="${header%/*}"   # Strip one-level (include/boost/...)
+
+    # OK
+    export HAVE_BOOST=true
+    export BOOST_FLAVOUR="${flavour:-library}"
+    export BOOST_ARCH_PATH="$prefix"
+    export BOOST_INC_DIR="${header%/*}"     # dirname
+    export BOOST_LIB_DIR="${library%/*}"    # dirname
+
+    library="${library##*/}"  # basename
+    library="${library%%.*}"  # w/o extension
+    library="${library#lib}"  # w/o 'lib' prefix (eg, linking)
+    export BOOST_LIB_NAME="$library"
+}
+
+
+# Output as per search_* function
+have_boost()
+{
+    local warn # warn="==> skip boost"
+    local config="config.sh/CGAL"
+    local file
+
+    # Setup - current environment if set
+    if [ -z "$BOOST_ARCH_PATH" ]
+    then
+        if file="$("$WM_PROJECT_DIR"/bin/foamEtcFile "$config")"
+        then
+            . "$file"
+        else
+            [ -n "$warn" ] && echo "$warn (no $config)"
+            return 2
+        fi
+    fi
+
+    search_boost "$BOOST_ARCH_PATH"
+}
+
+
+# Query settings (from CGAL setup)
+query_boost()
+{
+    local config="config.sh/CGAL"
+    local file
+
+    if file="$("$WM_PROJECT_DIR"/bin/foamEtcFile -mode=o "$config")"
+    then
+        . "$file"
+        _process_query boost "$BOOST_ARCH_PATH"
+    else
+        echo "(no $config)" 1>&2
+        echo "boost=unknown"
+    fi
+}
+
+
+#------------------------------------------------------------------------------
+
+# Reset
+no_boost
+
+# Test/query
+case "$1" in
+-test | -debug-test)
+    [ "$1" = "-debug-test" ] && set -x
+    have_boost
+    [ "$1" = "-debug-test" ] && set +x
+    echo_boost
+    ;;
+-query)
+    query_boost
+    ;;
+esac
+
+#------------------------------------------------------------------------------

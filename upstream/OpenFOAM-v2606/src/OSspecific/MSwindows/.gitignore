@@ -1,0 +1,6 @@
+# Ignore local symlink to FlexLexer.h
+# (sometimes used to resolve for different compiler combinations)
+
+/FlexLexer.h
+
+# end

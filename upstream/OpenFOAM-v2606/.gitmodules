@@ -1,0 +1,37 @@
+[submodule "cfmesh"]
+	path = plugins/cfmesh
+	url = https://gitlab.com/openfoam/community/cfmesh.git
+[submodule "avalanche"]
+	path = plugins/avalanche
+	url = https://gitlab.com/openfoam/community/avalanche.git
+[submodule "adios"]
+	path = modules/adios
+	url = https://gitlab.com/openfoam/modules/adiosfoam.git
+[submodule "OpenQBMM"]
+	path = modules/OpenQBMM
+	url = https://github.com/OpenQBMM/OpenQBMM.git
+	branch = openfoam.com
+[submodule "visualization"]
+	path = modules/visualization
+	url = https://gitlab.com/openfoam/modules/visualization.git
+[submodule "external-solver"]
+	path = modules/external-solver
+	url = https://gitlab.com/openfoam/modules/external-solver.git
+[submodule "bindings/pybFoam"]
+	path = plugins/bindings/pybFoam
+	url = https://github.com/HenningScheufler/pybFoam.git
+[submodule "bindings/pyOFTools"]
+	path = plugins/bindings/pyOFTools
+	url = https://github.com/HenningScheufler/pyOFTools.git
+[submodule "bindings/vtk-hdf"]
+	path = plugins/bindings/vtk-hdf
+	url = https://gitlab.com/openfoam/community/bindings/vtk-hdf.git
+[submodule "turbulence-community"]
+	path = plugins/turbulence-community
+	url = https://gitlab.com/openfoam/community/tc-turbulence/turbulence-community.git
+[submodule "plugins/data-community"]
+	path = plugins/data-community
+	url = https://gitlab.com/openfoam/community/sig-data-modelling/data-community.git
+[submodule "plugins/research"]
+	path = plugins/research
+	url = https://gitlab.com/openfoam/community/research.git

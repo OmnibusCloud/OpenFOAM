@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+title: OpenFOAM
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - name: Keysight Technologies
+repository-code: 'https://gitlab.com/openfoam/core/openfoam'
+url: 'https://www.openfoam.com/'
+keywords:
+  - CFD
+  - OpenFOAM
+  - Fluid Dynamics
+license: GPL-3.0-or-later
+version: v2606
+date-released: '2026-06-22'
