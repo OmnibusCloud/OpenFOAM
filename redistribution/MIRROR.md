@@ -23,12 +23,13 @@ Every file is byte-identical to what upstream published.
 |---|---|---|---|---|
 | `OpenFOAM-v2606.tgz` | the OpenFOAM source pack, also imported verbatim under `upstream/` | GPL-3.0-or-later | `2a1310e3ed192cc4c521e1d22dcc176f57bec61160c878dc4348f21d6672294d` | 69 422 947 |
 | `ThirdParty-v2606.tar.gz` | the ThirdParty pack: build scripts (LGPL-3.0) and the unpacked sources of every third-party component, compiled or not | see below | `3c7ccd88c5698a9c77a636b01f26e35d7042f15f14c2364cfd2d403030bf3f4a` | 369 660 343 |
+| `openmpi-4.1.8.tar.bz2` | the Open MPI the kits bundle — not the pack's 4.1.2, see `build/config.sh` | BSD-3-Clause | `466f68e3132a1dc02710cc2011fafced8336d98359fa2dae4dddcfd5719f12a9` | (recorded at first mirror run) |
 
-Third-party components inside the ThirdParty pack that the kits compile:
+Third-party components the kits compile:
 
-| Component | Directory in the pack | Licence |
+| Component | Source | Licence |
 |---|---|---|
-| Open MPI 4.1.2 | `sources/openmpi/openmpi-4.1.2` | BSD-3-Clause |
+| Open MPI 4.1.8 | `openmpi-4.1.8.tar.bz2` above (the pack's `sources/openmpi/openmpi-4.1.2` is not built) | BSD-3-Clause |
 | SCOTCH 6.1.0 | `sources/scotch/scotch_6.1.0` | CeCILL-C |
 | KaHIP 3.15 | `sources/kahip/kahip-3.15` | MIT |
 | FFTW 3.3.10 | `sources/fftw/fftw-3.3.10` | GPL-2.0-or-later |

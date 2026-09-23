@@ -81,9 +81,19 @@ if [ ! -d "$TP" ]; then
     tar -xzf "$DEPS_DIR/$THIRDPARTY_DIR.tar.gz" -C "$WORK"
 fi
 [ -x "$TP/Allwmake" ] || die "no Allwmake under $TP"
+
+# Open MPI comes from its own pinned tarball, unpacked where the pack's
+# makeOPENMPI looks for it (build/config.sh says why it is not the pack's).
+if [ ! -d "$TP/sources/openmpi/$OPENMPI_VERSION" ]; then
+    fetch_verify "$OPENMPI_URL" "$OPENMPI_SHA256" "$DEPS_DIR/$OPENMPI_VERSION.tar.bz2"
+    log "unpacking $OPENMPI_VERSION into ThirdParty/sources/openmpi"
+    mkdir -p "$TP/sources/openmpi"
+    tar -xjf "$DEPS_DIR/$OPENMPI_VERSION.tar.bz2" -C "$TP/sources/openmpi"
+fi
+
 for _c in "$OPENMPI_VERSION" "$SCOTCH_VERSION" "$KAHIP_VERSION" "$FFTW_VERSION"; do
     [ -d "$TP/sources/$(echo "$_c" | sed 's/[-_].*//' | tr 'A-Z' 'a-z')/$_c" ] \
-        || die "ThirdParty pack carries no sources/*/$_c - the pin in build/config.sh does not match the pack"
+        || die "no sources/*/$_c under ThirdParty - the pin in build/config.sh does not match what is unpacked"
 done
 
 # ---------------------------------------------------------------------------

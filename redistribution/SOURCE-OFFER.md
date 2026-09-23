@@ -5,7 +5,7 @@ This kit contains programs and libraries compiled from free software:
 | Component | Version | Licence |
 |---|---|---|
 | OpenFOAM® (OpenCFD Ltd) | v2606 | GNU GPL v3 or later |
-| Open MPI | 4.1.2 | BSD-3-Clause |
+| Open MPI | 4.1.8 | BSD-3-Clause |
 | SCOTCH | 6.1.0 | CeCILL-C |
 | KaHIP | 3.15 | MIT |
 | FFTW | 3.3.10 | GNU GPL v2 or later |

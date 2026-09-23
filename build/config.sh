@@ -28,7 +28,17 @@ THIRDPARTY_SIZE=369660343
 # and OpenFOAM etc/config.sh/*), restated here so that a change is a visible
 # diff rather than a silent consequence of a new pack.
 
-OPENMPI_VERSION=openmpi-4.1.2     # bundled: a node has no MPI of its own; OPAL_PREFIX relocates it
+# Open MPI: bundled, because a node has no MPI of its own (OPAL_PREFIX
+# relocates it). NOT the pack's copy: the pack ships 4.1.2 (November 2021),
+# whose configure cannot read Xcode 15's objdump on Apple Silicon and stops
+# with "Could not determine global symbol label prefix" (macOS try 2,
+# 2026-09-23). 4.1.8 (February 2025) is the last release of the 4.1 line,
+# ABI-compatible with 4.1.2, and is the one pin for every platform - the
+# tarball is fetched by checksum into the pack's sources/openmpi/ and
+# mirrored in the redistribution release like everything else we compile.
+OPENMPI_VERSION=openmpi-4.1.8
+OPENMPI_URL=https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-4.1.8.tar.bz2
+OPENMPI_SHA256=466f68e3132a1dc02710cc2011fafced8336d98359fa2dae4dddcfd5719f12a9
 SCOTCH_VERSION=scotch_6.1.0       # decomposePar's default method
 KAHIP_VERSION=kahip-3.15          # decomposePar method a case may name
 FFTW_VERSION=fftw-3.3.10          # function objects (noise, energy spectra)

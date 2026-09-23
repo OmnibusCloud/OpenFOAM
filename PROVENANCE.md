@@ -49,8 +49,23 @@ corresponding source of every compiled component travels with the kits.
 | SHA-256 | `3c7ccd88c5698a9c77a636b01f26e35d7042f15f14c2364cfd2d403030bf3f4a` |
 | Size | 369 660 343 bytes |
 | Scripts licence | LGPL-3.0 (`ThirdParty-v2606/COPYING`) |
-| Components we compile (unpacked under `sources/`) | `openmpi-4.1.2` (BSD-3-Clause), `scotch_6.1.0` (CeCILL-C), `kahip-3.15` (MIT), `fftw-3.3.10` (GPL-2.0-or-later) |
-| Components present but not compiled | `boost_1_74_0`, `CGAL-4.14.3`, `ADIOS2-2.12.1`, `hdf5-2.1.1`, `umpire-2025.03.0`, `ParaView-v6.1.1` |
+| Components we compile (unpacked under `sources/`) | `scotch_6.1.0` (CeCILL-C), `kahip-3.15` (MIT), `fftw-3.3.10` (GPL-2.0-or-later) |
+| Components present but not compiled | `openmpi-4.1.2` (replaced by 4.1.8, below), `boost_1_74_0`, `CGAL-4.14.3`, `ADIOS2-2.12.1`, `hdf5-2.1.1`, `umpire-2025.03.0`, `ParaView-v6.1.1` |
+
+## Open MPI
+
+The kits bundle Open MPI **4.1.8**, not the pack's 4.1.2: the 2021 configure
+script cannot read the object files Xcode 15's `objdump` produces on Apple
+Silicon and stops with "Could not determine global symbol label prefix"
+(second macOS build, 2026-09-23). 4.1.8 is the last release of the 4.1 line
+and ABI-compatible; one version travels on every platform.
+
+| Item | Value |
+|---|---|
+| URL | <https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-4.1.8.tar.bz2> |
+| SHA-256 | `466f68e3132a1dc02710cc2011fafced8336d98359fa2dae4dddcfd5719f12a9` |
+| Released | 2025-02-04 |
+| Licence | BSD-3-Clause |
 
 The choice of what is compiled is a decision recorded in
 [`build/config.sh`](build/config.sh): the kit runs whole cases on one node, and
