@@ -123,5 +123,24 @@ byte it hands to other people:
 | Runtime | every DLL beside the executables: `libstdc++-6`, `libgcc_s_seh-1`, `libwinpthread-1`, `libfftw3-3`, `libscotch`, the decomposition libraries; **`libPstream.dll` is the MS-MPI variant** (`libPstream.dll-msmpi`, identical checksum), `libPstream.dll-dummy` is the serial stand-in to copy over it on a machine without MS-MPI |
 | README | "cross-compiled in OpenSUSE environment using mingw cross-compiler … the thirdparty remain same as of 2512 release … does not support the compilation of OpenFOAM or dynamic code" |
 
-Nothing from this package is redistributed yet; the entry exists so that a
-Phase 0.5 interim Windows kit, if built, cites its origin by checksum.
+Nothing from this package is redistributed (decision of 2026-09-24: the
+Windows kit is cross-built here from the pinned source, and this build is the
+reference its results are compared against). The entry stays so that the
+comparison names what it compared against.
+
+### MS-MPI (build-time SDK and the runtime the acceptance installs)
+
+The Windows kit's parallel Pstream is compiled against Microsoft's MS-MPI SDK
+and imports `msmpi.dll` from the node's own MS-MPI installation. The SDK is
+used at build time only - no header, import library or DLL of it is in the
+kit. The runtime installer is pinned because the CI acceptance installs it on
+a disposable Windows runner to exercise the parallel path; compute nodes
+never receive it from us (MS-MPI's licence allows redistributing the
+installer as a whole only, and installing software on a node is not ours to
+do).
+
+| Item | Value |
+|---|---|
+| SDK | <https://download.microsoft.com/download/a/5/2/a5207ca5-1203-491a-8fb8-906fd68ae623/msmpisdk.msi> - SHA-256 `f9174c54feda794586ebd83eea065be4ad38b36f32af6e7dd9158d8fd1c08433`, 2 306 048 bytes, ProductVersion 10.1.12498.18 (MS-MPI v10.1.3) |
+| Runtime installer | <https://download.microsoft.com/download/a/5/2/a5207ca5-1203-491a-8fb8-906fd68ae623/msmpisetup.exe> - SHA-256 `c305ce3f05d142d519f8dd800d83a4b894fc31bcad30512cefb557feaccbe8b4`, 7 887 688 bytes |
+| Used from the SDK | `Include/*.h`, `Include/x64/mpifptr.h`, `Lib/x64/msmpi.lib` (laid out lowercase under `ThirdParty/platforms/linux64Mingw/msmpi-10.1.3/` for upstream's `etc/config.sh/mpi` and `mplibMSMPI` rules) |

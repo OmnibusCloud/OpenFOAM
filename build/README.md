@@ -21,6 +21,11 @@ unpacked kit is `.build/kit/openfoam/<platform>/`.
 | `linux/Dockerfile` | the build image: Ubuntu 22.04 + the toolchain upstream's `doc/Requirements.md` lists |
 | `linux/Dockerfile.verify` | a foreign image (Debian 12, no compiler, no libgomp) the kit must start on |
 | `linux/run.sh` | local driver: image, named build volume, kit out, verification |
+| `windows/cross.sh` | the Windows kit, cross-compiled on Linux with MinGW-w64: lays out the MS-MPI SDK where upstream's environment finds it, activates upstream's `etc-mingw/` overlay, one-stage `Allwmake`, checks both Pstreams and scotch by their PE imports, then `windows/pack.sh` |
+| `windows/pack.sh` | the Windows kit: every executable and DLL in one directory, every imported DLL staged by reading the PE import tables (MinGW runtime, scotch, fftw) until nothing is missing, `libPstream.dll` serial with the MS-MPI one beside it, a template `KIT.env`, `BUILDINFO.txt`, licences, the zip |
+| `verify.ps1` | the Windows acceptance (Windows PowerShell 5.1): unpack, deny the running user write access to the kit, `KIT.env` and nothing else on the process, pitzDaily/damBreak serially as shipped, then - where MS-MPI exists - the Pstream swap, pitzDaily on four ranks under `mpiexec`, motorBike with `-Long`, and an owner-filtered file-system audit; `-InstallMsmpi` installs the pinned MS-MPI on a CI runner |
+| `windows/Dockerfile` | the cross-build image: Ubuntu 24.04 + MinGW-w64 GCC 13 (posix threads), `msitools` for the SDK msi, zlib for MinGW |
+| `windows/run.sh` | local driver: image, its own named build volume, kit out, then `verify.ps1` on this Windows machine |
 
 ## Knobs
 
@@ -31,6 +36,7 @@ unpacked kit is `.build/kit/openfoam/<platform>/`.
 | `WORK` | `.build` | build tree location (`/build` inside the Docker driver) |
 | `DEPS_DIR` | `$WORK/deps` | where the pinned downloads live; the driver points it at `@Downloads/` |
 | `LONG` | 0 | `verify.sh`: also run motorBike (snappyHexMesh, six ranks, minutes) |
+| `TARGET` | (host) | `windows-x64` selects the Windows cross-build on a Linux host |
 | `VERIFY_ROOT` | `$WORK/verify` | `verify.sh`: where to unpack and run |
 
 ## The check that matters

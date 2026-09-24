@@ -36,9 +36,9 @@ export MSYS_NO_PATHCONV=1
 
 do_image() {
     log "building $IMAGE"
-    docker build -q -t "$IMAGE" -f "$HERE/Dockerfile" "$HERE"
+    docker build -q -t "$IMAGE" -f "$(host_path "$HERE/Dockerfile")" "$(host_path "$HERE")"
     log "building $VERIFY_IMAGE"
-    docker build -q -t "$VERIFY_IMAGE" -f "$HERE/Dockerfile.verify" "$HERE"
+    docker build -q -t "$VERIFY_IMAGE" -f "$(host_path "$HERE/Dockerfile.verify")" "$(host_path "$HERE")"
 }
 
 do_build() {

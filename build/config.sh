@@ -42,6 +42,19 @@ OPENMPI_SHA256=466f68e3132a1dc02710cc2011fafced8336d98359fa2dae4dddcfd5719f12a9
 SCOTCH_VERSION=scotch_6.1.0       # decomposePar's default method - the one the controller writes
 FFTW_VERSION=fftw-3.3.10          # function objects (noise, energy spectra)
 
+# Windows: MS-MPI, the node's own, never bundled (plan D-11). The kit is
+# built against the MS-MPI SDK's headers and import library, which exist at
+# build time only - the kit carries neither, and a node without MS-MPI runs
+# the serial Pstream the kit ships beside the MS-MPI one. The runtime
+# installer is pinned too: the CI acceptance installs it on a disposable
+# Windows runner to prove the parallel path. Both from Microsoft's MS-MPI
+# v10.1.3 release page (2025-02).
+MSMPI_VERSION=msmpi-10.1.3        # SDK ProductVersion 10.1.12498.18
+MSMPI_SDK_URL=https://download.microsoft.com/download/a/5/2/a5207ca5-1203-491a-8fb8-906fd68ae623/msmpisdk.msi
+MSMPI_SDK_SHA256=f9174c54feda794586ebd83eea065be4ad38b36f32af6e7dd9158d8fd1c08433
+MSMPI_SETUP_URL=https://download.microsoft.com/download/a/5/2/a5207ca5-1203-491a-8fb8-906fd68ae623/msmpisetup.exe
+MSMPI_SETUP_SHA256=c305ce3f05d142d519f8dd800d83a4b894fc31bcad30512cefb557feaccbe8b4
+
 # kahip is left out (2026-09-23). The controller writes decomposeParDict for
 # every parallel run and names scotch; a case's own choice of method is
 # ignored by design (requirements FR-F12), so kahip would never be asked
@@ -109,6 +122,26 @@ STRIP_KIT=1
 detect_platform() {
     _s=$(uname -s)
     _m=$(uname -m)
+    # TARGET=windows-x64 selects the cross-build: upstream's linux64Mingw
+    # rules on a Linux host, MinGW-w64 GCC, MS-MPI's SDK for the parallel
+    # Pstream. The build tree is named after the HOST (linux64Mingw...), the
+    # kit after the target (win64Mingw...): upstream's createMingwRuntime
+    # makes the same rename.
+    if [ "${TARGET:-}" = "windows-x64" ]; then
+        [ "$_s" = "Linux" ] || die "the Windows kit is cross-built on Linux, not on $_s"
+        PLATFORM=windows-x64
+        WM_ARCH_NAME=linux64
+        WM_COMPILER=Mingw
+        SO_EXT=dll
+        KIT_FOLDER=$PLATFORM
+        WM_LABEL_OPTION=Int$WM_LABEL_SIZE
+        WM_OPTIONS_EXPECTED=$WM_ARCH_NAME$WM_COMPILER$WM_PRECISION_OPTION$WM_LABEL_OPTION$WM_COMPILE_OPTION
+        WM_OPTIONS_RUNTIME=win64$WM_COMPILER$WM_PRECISION_OPTION$WM_LABEL_OPTION$WM_COMPILE_OPTION
+        TP_MPI_PLATFORM=$WM_ARCH_NAME$WM_COMPILER
+        TP_LIB_PLATFORM=$WM_ARCH_NAME$WM_COMPILER$WM_PRECISION_OPTION$WM_LABEL_OPTION
+        CROSS_PREFIX=x86_64-w64-mingw32
+        return 0
+    fi
     case "$_s" in
         Linux)
             case "$_m" in
@@ -145,3 +178,11 @@ detect_platform() {
 # (README.md), and shipping a libstdc++ without its matching libgcc_s is how
 # kits stop loading on the machines that were fine before.
 SYSTEM_LIBS_LINUX="libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libresolv.so.2 libnsl.so.1 libstdc++.so.6 libgcc_s.so.1 libz.so.1 ld-linux-x86-64.so.2 linux-vdso.so.1"
+
+# The same list for Windows: what every Windows installation has. Everything
+# else an executable or DLL of the kit imports must be a DLL in the kit -
+# the MinGW runtime (libstdc++-6, libgcc_s_seh-1, libwinpthread-1, zlib1),
+# scotch, fftw - and build/windows/pack.sh refuses the kit otherwise. The one
+# exception it knows: msmpi.dll, imported by the MS-MPI Pstream alone.
+# Compared case-insensitively (a PE import table's spelling varies).
+SYSTEM_DLLS_WINDOWS="kernel32.dll msvcrt.dll advapi32.dll user32.dll ws2_32.dll shell32.dll ole32.dll oleaut32.dll shlwapi.dll dbghelp.dll iphlpapi.dll bcrypt.dll ntdll.dll userenv.dll psapi.dll crypt32.dll secur32.dll version.dll wsock32.dll gdi32.dll comdlg32.dll imagehlp.dll rpcrt4.dll"

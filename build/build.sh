@@ -1,7 +1,9 @@
 #!/bin/sh
-# Build the OpenFOAM kit for the host platform (Linux or macOS).
+# Build the OpenFOAM kit for the host platform (Linux or macOS), or
+# cross-build the Windows kit on Linux.
 #
 #   sh build/build.sh                  build under .build/, kit in .build/out
+#   TARGET=windows-x64 sh build/build.sh   the Windows kit (MinGW-w64 cross-build)
 #   JOBS=8 sh build/build.sh           parallel width (default: every core)
 #   FORCE=1 sh build/build.sh          wipe the build tree first
 #   DEPS_DIR=/dl sh build/build.sh     where the pinned downloads live
@@ -33,7 +35,11 @@ SRC="$WORK/$OPENFOAM_DIR"
 TP="$WORK/$THIRDPARTY_DIR"
 
 log "OpenFOAM $OPENFOAM_VERSION for $PLATFORM ($WM_OPTIONS_EXPECTED), $JOBS jobs"
-log "  MPI      $OPENMPI_VERSION (ThirdParty, bundled)"
+if [ "$PLATFORM" = "windows-x64" ]; then
+    log "  MPI      $MSMPI_VERSION (the node's MS-MPI; SDK at build time only, serial Pstream beside it)"
+else
+    log "  MPI      $OPENMPI_VERSION (ThirdParty, bundled)"
+fi
 log "  scotch   $SCOTCH_VERSION   fftw $FFTW_VERSION"
 log "  kahip, CGAL/boost, ADIOS2, HDF5, METIS: off (build/config.sh)"
 
@@ -103,17 +109,27 @@ fi
 
 # Open MPI comes from its own pinned tarball, unpacked where the pack's
 # makeOPENMPI looks for it (build/config.sh says why it is not the pack's).
-if [ ! -d "$TP/sources/openmpi/$OPENMPI_VERSION" ]; then
+# Not for Windows: that kit runs on the node's MS-MPI (build/windows/).
+if [ "$PLATFORM" != "windows-x64" ] && [ ! -d "$TP/sources/openmpi/$OPENMPI_VERSION" ]; then
     fetch_verify "$OPENMPI_URL" "$OPENMPI_SHA256" "$DEPS_DIR/$OPENMPI_VERSION.tar.bz2"
     log "unpacking $OPENMPI_VERSION into ThirdParty/sources/openmpi"
     mkdir -p "$TP/sources/openmpi"
     tar -xjf "$DEPS_DIR/$OPENMPI_VERSION.tar.bz2" -C "$TP/sources/openmpi"
 fi
 
-for _c in "$OPENMPI_VERSION" "$SCOTCH_VERSION" "$FFTW_VERSION"; do
+for _c in "$SCOTCH_VERSION" "$FFTW_VERSION"; do
     [ -d "$TP/sources/$(echo "$_c" | sed 's/[-_].*//' | tr 'A-Z' 'a-z')/$_c" ] \
         || die "no sources/*/$_c under ThirdParty - the pin in build/config.sh does not match what is unpacked"
 done
+[ "$PLATFORM" = "windows-x64" ] || [ -d "$TP/sources/openmpi/$OPENMPI_VERSION" ] \
+    || die "no sources/openmpi/$OPENMPI_VERSION under ThirdParty"
+
+# The Windows kit: the same source tree and ThirdParty pack, then its own
+# configure, build, checks and packing (build/windows/cross.sh).
+if [ "$PLATFORM" = "windows-x64" ]; then
+    export SRC TP JOBS
+    exec sh "$BUILD_DIR/windows/cross.sh"
+fi
 
 # ThirdParty build-configuration adjustments (patches/README.md lists them):
 # macOS - scotch's Darwin Makefile.inc never includes <sys/time.h>, and Apple

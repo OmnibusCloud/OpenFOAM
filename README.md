@@ -45,12 +45,12 @@ refused by name rather than run against a different solver.
 | Setting | Value | Why |
 |---|---|---|
 | Precision / label | `DP`, `Int32` | upstream's defaults; the ones every tutorial and most user cases assume |
-| MPI | Open MPI 4.1.8, bundled (fetched by checksum; the pack's 4.1.2 does not configure under Xcode 15 on Apple Silicon) | the kit must run parallel on a node that has no MPI; a system MPI is never assumed; one MPI version on every platform |
+| MPI | Linux, macOS: Open MPI 4.1.8, bundled (fetched by checksum; the pack's 4.1.2 does not configure under Xcode 15 on Apple Silicon). Windows: MS-MPI, the node's own - the kit is built against the MS-MPI SDK and ships a serial `libPstream.dll` beside the MS-MPI one | the kit must run parallel on a node that has no MPI; a system MPI is never assumed on Linux and macOS; on Windows MS-MPI's licence allows redistributing only its installer, so it is the machine owner's to install, and the kit still runs serially without it |
 | Decomposition | scotch 6.1.0 (and pt-scotch) | the method the controller writes into every `decomposeParDict`; a case's own choice is ignored by design |
 | FFTW 3.3.10 | bundled | function objects that need it |
 | kahip | **not built** | never asked for (see above); it would cost an OpenMP runtime on every platform and has none under Apple clang |
 | CGAL / boost, ADIOS2, HDF5, METIS | **not built** | they gate tools the controller does not admit (foamyHexMesh, in-situ output) and are the components upstream itself cannot cross-build for Windows |
-| Compiler | system GCC on Linux (Ubuntu 22.04 image: gcc 11, glibc 2.35), Apple clang on macOS | the glibc the kit is built against is the oldest it runs on |
+| Compiler | system GCC on Linux (Ubuntu 22.04 image: gcc 11, glibc 2.35), Apple clang on macOS, MinGW-w64 GCC 13 (posix threads, Ubuntu 24.04 image) cross-compiling for Windows | the glibc the kit is built against is the oldest it runs on; Windows is built the way OpenCFD builds its own Windows binaries |
 
 The kit is **relocatable by environment, not by installation**: nothing is
 ever sourced or installed on a node. `KIT.env` at the kit's root lists the
@@ -67,7 +67,18 @@ audits the file system after a run to prove it.
 |---|---|---|
 | Linux x86-64 | `openfoam/linux-x64/` | **released** in [`openfoam-v2606-2`](https://github.com/OmnibusCloud/OpenFOAM/releases/tag/openfoam-v2606-2) (152 MB zip, 506 MB unpacked; first in `openfoam-v2606-1`); accepted after download in a foreign image, motorBike included |
 | macOS arm64 | `openfoam/macos-arm64/` | **released** in [`openfoam-v2606-2`](https://github.com/OmnibusCloud/OpenFOAM/releases/tag/openfoam-v2606-2) (113 MB zip, 417 MB unpacked; ad-hoc signed); accepted with the build volume detached as a dedicated account, motorBike included |
-| Windows x86-64 | `openfoam/windows-x64/` | gated goal — upstream's MinGW cross-build, MS-MPI only when the machine owner has installed it |
+| Windows x86-64 | `openfoam/windows-x64/` | **in the pipeline** (2026-09-24): upstream's MinGW-w64 cross-build on Linux, verified on a Windows runner; MS-MPI is the node's own, never bundled - a node without it runs serially |
+
+**Windows.** The Windows kit is not OpenCFD's official Windows build repacked,
+although one exists: its binaries carry a build stamp from December 2021
+beside the `v2606` version string, so the exact source they were built from
+cannot be named, and a distributor under the GPL has to name it. It is built
+here instead, from the same pinned source, with upstream's own
+cross-compilation rules; the official build is kept as the reference the
+kit's results are compared against. Every DLL sits beside the executables
+(where Windows looks first), `libPstream.dll` is the serial one, and the
+MS-MPI one travels beside it as `libPstream.dll-msmpi` for the controller to
+swap in on a node that has MS-MPI installed.
 
 **macOS signing.** The macOS kit carries ad-hoc signatures only — the ones
 Apple's linker applies to every arm64 binary, and an explicit `codesign -s -`
@@ -94,6 +105,10 @@ sh build/linux/run.sh all       # image, build, kit, verification in a foreign i
 # Linux or macOS, on the host:
 sh build/build.sh               # .build/out/openfoam-<platform>.zip
 sh build/verify.sh              # unpack somewhere else, run tutorials, audit the file system
+
+# Windows, cross-built on Linux (or in Docker from a Windows checkout), verified on Windows:
+TARGET=windows-x64 sh build/build.sh
+sh build/windows/run.sh all     # image, cross-build, then build/verify.ps1 on this Windows machine
 ```
 
 See [`build/README.md`](build/README.md) for the knobs. CI
@@ -132,5 +147,6 @@ a Linux build in Docker (`sh build/linux/run.sh all`). Never build from
 | `build/pack.sh` | the kit: the runtime subset (no sources, no headers, the acceptance tutorials only), staged runtime libraries, symbol tables stripped, `KIT.env`, `BUILDINFO.txt`, licences, zip |
 | `build/verify.sh` | acceptance: tutorials serial and parallel from an arbitrary folder with a scrubbed environment, file-system audit |
 | `build/linux/` | Docker image for the build, a foreign image for verification, the local driver |
+| `build/windows/` | the cross-build (`cross.sh`, `pack.sh`), its Docker image and local driver; `build/verify.ps1` is the Windows acceptance |
 | `redistribution/` | the source mirror published beside the kits |
 | `PROVENANCE.md` | checksums of everything, and how the pack was verified against the tag |
