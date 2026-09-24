@@ -227,7 +227,7 @@ cp "$REPO_ROOT/LICENSE" "$KIT/LICENSE-GPL-3.0.txt"
 cp "$REPO_ROOT/NOTICE.md" "$KIT/NOTICE.md"
 cp "$REPO_ROOT/redistribution/SOURCE-OFFER.md" "$KIT/SOURCE-OFFER.md"
 
-_git=$(cd "$REPO_ROOT" && git rev-parse --short HEAD 2>/dev/null || echo unknown)
+_git=$(cd "$REPO_ROOT" && git -c safe.directory='*' rev-parse --short HEAD 2>/dev/null || echo unknown)
 _cc=$("$CROSS_PREFIX-g++" --version | head -1)
 {
     echo "OpenFOAM $OPENFOAM_VERSION (api $OPENFOAM_API) - OmnibusCloud kit"
