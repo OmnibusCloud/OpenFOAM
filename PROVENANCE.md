@@ -82,12 +82,30 @@ a foreign image.
 
 | Release | Kit | SHA-256 | Size | Built from | Built by |
 |---|---|---|---|---|---|
+| [`openfoam-v2606-3`](https://github.com/OmnibusCloud/OpenFOAM/releases/tag/openfoam-v2606-3) (2026-09-24) | `openfoam-linux-x64.zip` | `a226745d96d349bdfb93b71ce134211ee88ecefd06b676ed24fcd6a1ddd60be4` | 158 775 869 | `d7a5f75` | CI run 35978182262, `ubuntu-22.04`, gcc 11.4.0 |
+| [`openfoam-v2606-3`](https://github.com/OmnibusCloud/OpenFOAM/releases/tag/openfoam-v2606-3) (2026-09-24) | `openfoam-macos-arm64.zip` | `d441210c597000f48cae20a99e4493838a8cf460061f7ffeeacf48369d20e8ab` | 114 973 148 | `d7a5f75` | CI run 35978182262, `macos-14`, Apple clang; ad-hoc signed |
+| [`openfoam-v2606-3`](https://github.com/OmnibusCloud/OpenFOAM/releases/tag/openfoam-v2606-3) (2026-09-24) | `openfoam-windows-x64.zip` | `c5a15181284c72283ca21736202c437c32a60364b4f7d4ca95cefaddcf416732` | 219 997 998 | `d7a5f75` | CI run 35978182262, cross-compiled on `ubuntu-24.04` with MinGW-w64 GCC 13 (posix threads); built against the MS-MPI 10.1.3 SDK |
 | [`openfoam-v2606-2`](https://github.com/OmnibusCloud/OpenFOAM/releases/tag/openfoam-v2606-2) (2026-09-23) | `openfoam-linux-x64.zip` | `fd0b444ff8b3f63e594a45ae7514a699899c4176bdbdacaf4a52a49be51c7c55` | 158 775 859 | `6eada66` | CI run 35878648232, `ubuntu-22.04`, gcc 11.4.0 |
 | [`openfoam-v2606-2`](https://github.com/OmnibusCloud/OpenFOAM/releases/tag/openfoam-v2606-2) (2026-09-23) | `openfoam-macos-arm64.zip` | `f1d86fd29ea76e640b3ef344a690505a5f24589c162c04b2eaabe28a917da71c` | 114 973 131 | `6eada66` | CI run 35878648232, `macos-14`, Apple clang (Xcode 15.4); ad-hoc signed |
 | [`openfoam-v2606-1`](https://github.com/OmnibusCloud/OpenFOAM/releases/tag/openfoam-v2606-1) (2026-09-23) | `openfoam-linux-x64.zip` | `601ead350823cdfe9175a17338870c02733683a4eb731c07f1535a100fbfcd2f` | 158 860 111 | `99d2874` | CI run 35852177714, `ubuntu-22.04`, gcc 11.4.0 |
 
-All three: OpenFOAM v2606, Open MPI 4.1.8, scotch 6.1.0, fftw 3.3.10,
-DP/Int32/Opt, no kahip.
+All: OpenFOAM v2606, scotch 6.1.0, fftw 3.3.10, DP/Int32/Opt, no kahip;
+Linux and macOS bundle Open MPI 4.1.8, Windows runs on the node's MS-MPI.
+`openfoam-v2606-3` is the first release with all three platforms; its Linux
+and macOS kits are the build-2 kits rebuilt (same source, same options, a
+new build stamp).
+
+Acceptance of `openfoam-v2606-3`, in the release run: Linux and macOS as for
+build 2 (the long run, motorBike included, `verify: OK` on both); **Windows**
+on a `windows-2022` runner with MS-MPI 10.1.3 installed unattended, the kit
+denied write access for the running user, the environment `KIT.env` and
+nothing else: the kit answers, pitzDaily serial 282 iterations (7 s),
+damBreak, the MS-MPI Pstream swapped in, pitzDaily on four ranks under the
+node's `mpiexec` 289 iterations (5 s), motorBike through snappyHexMesh and
+simpleFoam on six ranks to Time = 500 in 1 784 s on the 4-core runner,
+file-system audit clean. All three archives downloaded afterwards and
+checked against `SHA256SUMS`; the Linux kit accepted again in debian:12 and
+the Windows kit on a Windows 11 desktop without MS-MPI (serial steps).
 
 Acceptance of `openfoam-v2606-2`:
 

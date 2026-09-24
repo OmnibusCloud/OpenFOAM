@@ -65,9 +65,9 @@ audits the file system after a run to prove it.
 
 | Platform | Kit folder | Status |
 |---|---|---|
-| Linux x86-64 | `openfoam/linux-x64/` | **released** in [`openfoam-v2606-2`](https://github.com/OmnibusCloud/OpenFOAM/releases/tag/openfoam-v2606-2) (152 MB zip, 506 MB unpacked; first in `openfoam-v2606-1`); accepted after download in a foreign image, motorBike included |
-| macOS arm64 | `openfoam/macos-arm64/` | **released** in [`openfoam-v2606-2`](https://github.com/OmnibusCloud/OpenFOAM/releases/tag/openfoam-v2606-2) (113 MB zip, 417 MB unpacked; ad-hoc signed); accepted with the build volume detached as a dedicated account, motorBike included |
-| Windows x86-64 | `openfoam/windows-x64/` | cross-built on Linux with MinGW-w64 (210 MB zip, 683 MB unpacked); passes the acceptance on a Windows runner with MS-MPI installed - pitzDaily serially as shipped and on four ranks under `mpiexec` after the Pstream swap, file-system audit clean; first release: `openfoam-v2606-3`. MS-MPI is the node's own, never bundled; a node without it runs serially |
+| Linux x86-64 | `openfoam/linux-x64/` | **released** in [`openfoam-v2606-3`](https://github.com/OmnibusCloud/OpenFOAM/releases/tag/openfoam-v2606-3) (152 MB zip, 506 MB unpacked; first in `openfoam-v2606-1`); accepted after download in a foreign image, motorBike included |
+| macOS arm64 | `openfoam/macos-arm64/` | **released** in [`openfoam-v2606-3`](https://github.com/OmnibusCloud/OpenFOAM/releases/tag/openfoam-v2606-3) (113 MB zip, 417 MB unpacked; ad-hoc signed; first in `openfoam-v2606-2`); accepted with the build volume detached as a dedicated account, motorBike included |
+| Windows x86-64 | `openfoam/windows-x64/` | **released** in [`openfoam-v2606-3`](https://github.com/OmnibusCloud/OpenFOAM/releases/tag/openfoam-v2606-3) (210 MB zip, 683 MB unpacked), cross-built on Linux with MinGW-w64; accepted on a Windows runner with MS-MPI installed - pitzDaily serially as shipped and on four ranks under `mpiexec` after the Pstream swap, motorBike on six ranks, file-system audit clean. MS-MPI is the node's own, never bundled; a node without it runs serially |
 
 **Windows.** The Windows kit is not OpenCFD's official Windows build repacked,
 although one exists: its binaries carry a build stamp from December 2021
