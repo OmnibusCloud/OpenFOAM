@@ -249,9 +249,11 @@ jobs:
         shell: powershell
         env:
           LONG: ${{ inputs.long && '1' || '0' }}
+        # In-process (&), not powershell.exe -File: a switch passed to a child
+        # powershell as -Long:$long arrives as the string "False" and cannot
+        # bind (the second Windows run).
         run: |
-          $long = $env:LONG -eq '1'
-          powershell -NoProfile -ExecutionPolicy Bypass -File build\verify.ps1 -Kit kit\openfoam-windows-x64.zip -Root C:\ofverify -InstallMsmpi -Long:$long
+          & build\verify.ps1 -Kit kit\openfoam-windows-x64.zip -Root C:\ofverify -InstallMsmpi -Long:($env:LONG -eq '1')
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
   release:
