@@ -19,6 +19,10 @@ on:
         description: 'Also cross-build the Windows x64 kit and verify it on a Windows runner (long)'
         type: boolean
         default: false
+      windows_kit_run_id:
+        description: 'Windows: skip the cross-build and verify the openfoam-windows-x64 artifact of this run id instead (acceptance iterations without the 3-hour build)'
+        type: string
+        default: ''
       long:
         description: 'Run motorBike in the verification (minutes per platform)'
         type: boolean
@@ -169,7 +173,7 @@ jobs:
     # for the toolchain - the kit runs on Windows, the host's glibc is
     # irrelevant. On request and on every release; the acceptance is the
     # next job, on a Windows runner.
-    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.windows) || startsWith(github.ref, 'refs/tags/openfoam-v') }}
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.windows && inputs.windows_kit_run_id == '') || startsWith(github.ref, 'refs/tags/openfoam-v') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 330
     steps:
@@ -216,14 +220,31 @@ jobs:
     # (disposable) runner to prove the parallel path. A release needs this
     # job green, not just the build.
     needs: windows-x64
+    if: ${{ always() && (needs.windows-x64.result == 'success' || (github.event_name == 'workflow_dispatch' && inputs.windows && inputs.windows_kit_run_id != '')) }}
     runs-on: windows-2022
     timeout-minutes: 120
     steps:
+      # NTFS cannot hold the upstream tree (colon-named tutorial files, case
+      # collisions, symbolic links - README.md): this runner checks out the
+      # build scripts alone, with git told not to police the paths it skips.
+      - name: Git settings for a Windows checkout of this repository
+        run: |
+          git config --global core.protectNTFS false
+          git config --global core.longpaths true
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout: build
       - uses: actions/download-artifact@v4
+        if: ${{ inputs.windows_kit_run_id == '' }}
         with:
           name: openfoam-windows-x64
           path: kit
+      - name: The kit of an earlier run
+        if: ${{ inputs.windows_kit_run_id != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: powershell
+        run: gh run download ${{ inputs.windows_kit_run_id }} --repo ${{ github.repository }} --name openfoam-windows-x64 --dir kit
       - name: Verify from a plain folder, MS-MPI installed, no other environment
         shell: powershell
         env:
